@@ -13,8 +13,8 @@ This demonstration uses the L16 core board to perform fft on a received stereo s
 
 Some features:
 
-*detect and report the frequency of the incoming (listener) audio signal
-*derive audio source presence, identify silence and glitches on a real-time basis
+* detect and report the frequency of the incoming (listener) audio signal
+* derive audio source presence, identify silence and glitches on a real-time basis
 
 
 Notes
