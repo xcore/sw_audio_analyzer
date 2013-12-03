@@ -11,7 +11,7 @@
 #include "ports.h"
 #include "fft.h"
 
-#include "print.h"
+#include "debug_print.h"
 #include "analyzer.h"
 
 void audio_hw_init(unsigned);
@@ -105,8 +105,11 @@ void audio_analyzer()
 	  write_spectral_result(max_mag_spec_idx, max_mag_spec_val);
 
 	  //perform glitch analysis
+	  int tmp_idx = 0;
 	  for(int i=(-PEAK_RANGE); i<= PEAK_RANGE;i++) {
-		  peak_energy += mag_spec[max_mag_spec_idx+i];
+		  tmp_idx = max_mag_spec_idx+i;
+		  if (( tmp_idx >= 0) && (tmp_idx < (FFT_POINTS/2)))
+			peak_energy += mag_spec[tmp_idx];
 	  }
 
 	  for (int i=0; i<FFT_POINTS/2; i++) {
