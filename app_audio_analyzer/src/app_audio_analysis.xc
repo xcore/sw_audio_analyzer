@@ -91,7 +91,7 @@ void audio_analyzer()
 
 #ifdef XSCOPE_DEBUG
 	  for (int i=0; i<FFT_POINTS; i++) {
-		////output_data_mag_spec(mag_spec[i]);
+		output_data_mag_spec(mag_spec[i]);
 	  }
 #endif //XSCOPE_DEBUG
 
@@ -123,8 +123,7 @@ void audio_analyzer()
 	  peak_energy /= (PEAK_RANGE*2+1);
 	  other_energy /= (other_energy_ctr-(PEAK_RANGE*2+1));
       if(other_energy > (GLITCH_THRESHOLD)) {
-    	;
-    	//glitch suspected!!!
+    	debug_printf("glitch suspected!!!\n");
       }
 
   } //end of while(1)
@@ -153,9 +152,10 @@ void signal_sampler()
 	      {
 			write_audio_data(data);
         	//TODO: move this freq based signal generation into a look-up or auto generation
-			data = 2048*sin(2*3.1415926535*(SIGNAL_FREQ/SAMP_FREQ)*time_idx);
+			//data = 2048*sin(2*3.1415926535*(SIGNAL_FREQ/SAMP_FREQ)*time_idx);
+			data = 2048*sin(2*time_idx);
 #ifdef XSCOPE_DEBUG
-  				////output_data_adc_dac(data);
+  			output_data_adc_dac(data);
 #endif //XSCOPE_DEBUG
 			time_idx = (time_idx+1)%(XS1_TIMER_HZ/SAMP_FREQ);
 	      }

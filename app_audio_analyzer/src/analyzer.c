@@ -1,4 +1,5 @@
 #include "analyzer.h"
+#include "debug_print.h"
 
 #define SIG_ENERGY_THRESH	100
 #define NUM_LUT_ENTRIES		6
@@ -86,12 +87,10 @@ void analyze_spectral_peaks()
 	  delta *= -1;
 
 	if (delta < SIG_ENERGY_THRESH) {
-       //detected signal : freq = ((spectral_peaks.value[iter][0]*1000)/5.5), amplitude is Ok
-		;
+	  debug_printf("detected signal : freq = %d, energy is Ok\n", ((spectral_peaks.value[iter][0]*1000)/5.5));
 	}
 	else {
-	  //absence of signal: either silence detected or talker not active?
-		;
+	  debug_printf("absence of signal: either silence detected or talker not active?\n");
 	}
   }
   spectral_peaks.depth -= depth;
