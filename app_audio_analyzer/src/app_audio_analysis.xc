@@ -166,7 +166,7 @@ void app_handler()
         	if (do_spectral_analysis())
         	  analyze_spectral_peaks();
           break;
-          //TODO: add i2s audio core interface
+          //TODO: to add i2s audio core interface
 	  }
   }
 }

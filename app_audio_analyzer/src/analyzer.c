@@ -32,16 +32,16 @@ spectral_buf spectral_peaks;
 
 void write_audio_data(int data)
 {
-  unsigned read_ptr = data_buffer.read_ptr;
-  data_buffer.circ_buf[0][read_ptr] = data;
-  data_buffer.read_ptr = (read_ptr+1)%256;
+  unsigned write_ptr = data_buffer.write_ptr;
+  data_buffer.circ_buf[0][write_ptr] = data;
+  data_buffer.write_ptr = (write_ptr+1)%256;
 }
 
 int get_audio_data()
 {
-  unsigned write_ptr = data_buffer.write_ptr;
-  int data = data_buffer.circ_buf[0][write_ptr];
-  data_buffer.write_ptr = (write_ptr+1)%256;
+  unsigned read_ptr = data_buffer.read_ptr;
+  int data = data_buffer.circ_buf[0][read_ptr];
+  data_buffer.read_ptr = (read_ptr+1)%256;
   return data;
 }
 
@@ -75,7 +75,7 @@ void analyze_spectral_peaks()
 	if (iter < 0)
 	  iter += FFT_PEAK_POINTS;
 
-	/* for the entire depth, lookup once to identify valid rnage*/
+	/* for the entire depth, lookup once to identify valid range */
 	for (int j=0; (j<NUM_LUT_ENTRIES)&&(!lkup_done); j++) {
 	  if (lkup_fft_256[j][0] <= spectral_peaks.value[iter][0]) {
 		lkup_done = 1;
