@@ -20,12 +20,12 @@ void audio_hw_config(unsigned samFreq);
 void xscope_user_init(void) {
       xscope_register(2,
                       XSCOPE_CONTINUOUS, "ADC-DAC",
-                      XSCOPE_UINT, "adc-dac",
+                      XSCOPE_INT, "adc-dac",
                       XSCOPE_CONTINUOUS, "M_S",
                       XSCOPE_UINT, "mag_spectrum");
 }
 
-void output_data_adc_dac(unsigned int data_value_1) {
+void output_data_adc_dac(int data_value_1) {
   xscope_int(0, data_value_1);
 }
 
@@ -34,7 +34,7 @@ void output_data_mag_spec(unsigned int data_value_1) {
 }
 #endif //XSCOPE_DEBUG
 
-void magnitude_spectrum(unsigned sig1[], unsigned sig2[], unsigned magSpectrum[])
+void magnitude_spectrum(int sig1[], int sig2[], unsigned magSpectrum[])
 {
 	int  im[FFT_POINTS];
 	int sig[FFT_POINTS];
@@ -64,11 +64,10 @@ void magnitude_spectrum(unsigned sig1[], unsigned sig2[], unsigned magSpectrum[]
 
 void audio_analyzer()
 {
-  unsigned sig1[FFT_POINTS], sig2[FFT_POINTS];
+  int sig1[FFT_POINTS], sig2[FFT_POINTS];
   unsigned mag_spec[FFT_POINTS];
   unsigned max_mag_spec_val = 0;
   unsigned max_mag_spec_idx = 0;
-  unsigned index = 0;
   unsigned peak_energy;
   unsigned other_energy;
   unsigned other_energy_ctr = 0;
@@ -81,7 +80,7 @@ void audio_analyzer()
 	  // compute magnitude spectrum of the signals
 	  for (int i=0; i<FFT_POINTS; i++){
 	    sig1[i] = get_audio_data();
-		sig2[i] = sig1[index];
+		sig2[i] = sig1[i];
 	  }
 	  magnitude_spectrum(sig1, sig2, mag_spec);
 	  mag_spec[0] = 0;	// Set DC component to 0
@@ -128,7 +127,7 @@ void audio_analyzer()
   } //end of while(1)
 }
 
-void signal_sampler()
+void app_handler()
 {
   /* Audio sample buffers */
   unsigned sampsAdc[I2S_MASTER_NUM_CHANS_ADC];
@@ -150,8 +149,12 @@ void signal_sampler()
 		  case t when timerafter(time+(XS1_TIMER_HZ/SAMP_FREQ)):> time:
 	      {
 			write_audio_data(data);
-        	//TODO: move this freq based signal generation into a look-up or auto generation
-			data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
+        	//TODO: if a single freq test signal is only required, move the freq into a look-up for a quarter wave period
+			//data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
+			if ((time_idx > 2000) && (time_idx < 60000))
+			  data = 2048*sin(time_idx*2*3.1415926535*8500/(double)SAMP_FREQ);
+			else
+			  data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
 #ifdef XSCOPE_DEBUG
   			output_data_adc_dac(data);
 #endif //XSCOPE_DEBUG
@@ -171,7 +174,7 @@ void signal_sampler()
 int main(){
 	par {
 		on tile[0]: audio_analyzer();
-		on tile[0]: signal_sampler();
+		on tile[0]: app_handler();
 #if 0
         on tile[AUDIO_IO_CORE] :
         {

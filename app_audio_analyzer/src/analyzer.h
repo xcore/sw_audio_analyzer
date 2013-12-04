@@ -6,8 +6,8 @@
 #define FFT_PEAK_POINTS 128			// Number of spectral peaks; for envelope detection
 #define SIGNAL_FREQ		5500		//Frequency of test sine wave signal
 
-void write_audio_data(unsigned data);
-unsigned get_audio_data();
+void write_audio_data(int data);
+int get_audio_data();
 unsigned do_spectral_analysis();
 void write_spectral_result(unsigned peak_index, unsigned peak_value);
 void analyze_spectral_peaks();

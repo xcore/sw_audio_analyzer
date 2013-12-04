@@ -16,7 +16,7 @@ unsigned lkup_fft_256[NUM_LUT_ENTRIES][2] = {
 };
 
 typedef struct data_buf {
-  unsigned circ_buf[2][FFT_POINTS];
+  int circ_buf[2][FFT_POINTS];
   unsigned read_ptr;
   unsigned write_ptr;
 } data_buf;
@@ -30,17 +30,17 @@ typedef struct spectral_buf {
 data_buf data_buffer;
 spectral_buf spectral_peaks;
 
-void write_audio_data(unsigned data)
+void write_audio_data(int data)
 {
   unsigned read_ptr = data_buffer.read_ptr;
   data_buffer.circ_buf[0][read_ptr] = data;
   data_buffer.read_ptr = (read_ptr+1)%256;
 }
 
-unsigned get_audio_data()
+int get_audio_data()
 {
   unsigned write_ptr = data_buffer.write_ptr;
-  unsigned data = data_buffer.circ_buf[0][write_ptr];
+  int data = data_buffer.circ_buf[0][write_ptr];
   data_buffer.write_ptr = (write_ptr+1)%256;
   return data;
 }
@@ -86,7 +86,8 @@ void analyze_spectral_peaks()
 	if ((delta = spectral_peaks.value[iter][1] - lkup_val) < 0)
 	  delta *= -1;
 
-	if (delta < SIG_ENERGY_THRESH) {
+	//if (delta < SIG_ENERGY_THRESH) {
+	if (1) {
 	  int temp = (spectral_peaks.value[iter][0]*1000)/5.5;
 	  debug_printf("detected signal : freq = %d, energy is Ok\n", temp);
 	}
