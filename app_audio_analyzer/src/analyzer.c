@@ -1,7 +1,7 @@
 #include "analyzer.h"
 #include "debug_print.h"
 
-#define SIG_ENERGY_THRESH	100
+#define SIG_ENERGY_THRESH	500000
 #define NUM_LUT_ENTRIES		6
 
 //base fn: 2048*sin(2*3.1415926535*(SIGNAL_FREQ/SAMP_FREQ)*i);
@@ -59,7 +59,7 @@ unsigned do_spectral_analysis()
   return spectral_peaks.depth;
 }
 
-/* identifies whether listener signal peak and frequency are in valid range */
+/* identifies whether listener signal peak and frequency are in valid range? */
 /* detects audio presence/absence */
 void analyze_spectral_peaks()
 {
@@ -69,7 +69,7 @@ void analyze_spectral_peaks()
   int lkup_done = 0;
   int lkup_val = 0;
   int delta = 0;
-  for (int i=0; (i<depth)&&depth; i++) {
+  for (int i=0; i<depth; i++) {
 	/* check if index and magnitude are well with in a tolerance limit */
 	iter = (index-i)%FFT_PEAK_POINTS;
 	if (iter < 0)
@@ -87,7 +87,8 @@ void analyze_spectral_peaks()
 	  delta *= -1;
 
 	if (delta < SIG_ENERGY_THRESH) {
-	  debug_printf("detected signal : freq = %d, energy is Ok\n", ((spectral_peaks.value[iter][0]*1000)/5.5));
+	  int temp = (spectral_peaks.value[iter][0]*1000)/5.5;
+	  debug_printf("detected signal : freq = %d, energy is Ok\n", temp);
 	}
 	else {
 	  debug_printf("absence of signal: either silence detected or talker not active?\n");

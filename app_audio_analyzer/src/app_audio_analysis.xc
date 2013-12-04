@@ -1,6 +1,5 @@
 #include <platform.h>
 #include <xs1.h>
-#include <xs1_su.h>
 #include <math.h>
 #define XSCOPE_DEBUG
 #ifdef XSCOPE_DEBUG
@@ -152,8 +151,7 @@ void signal_sampler()
 	      {
 			write_audio_data(data);
         	//TODO: move this freq based signal generation into a look-up or auto generation
-			//data = 2048*sin(2*3.1415926535*(SIGNAL_FREQ/SAMP_FREQ)*time_idx);
-			data = 2048*sin(2*time_idx);
+			data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
 #ifdef XSCOPE_DEBUG
   			output_data_adc_dac(data);
 #endif //XSCOPE_DEBUG
