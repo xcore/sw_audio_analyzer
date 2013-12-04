@@ -1,7 +1,7 @@
 #include "analyzer.h"
 #include "debug_print.h"
 
-#define SIG_ENERGY_THRESH	500000
+#define SIG_ENERGY_THRESH	50000000  //TODO: to derive a meaningful value for this
 #define NUM_LUT_ENTRIES		6
 
 //base fn: 2048*sin(2*3.1415926535*(SIGNAL_FREQ/SAMP_FREQ)*i);
@@ -86,8 +86,7 @@ void analyze_spectral_peaks()
 	if ((delta = spectral_peaks.value[iter][1] - lkup_val) < 0)
 	  delta *= -1;
 
-	//if (delta < SIG_ENERGY_THRESH) {
-	if (1) {
+	if (delta < SIG_ENERGY_THRESH) {
 	  int temp = (spectral_peaks.value[iter][0]*1000)/5.5;
 	  debug_printf("detected signal : freq = %d, energy is Ok\n", temp);
 	}

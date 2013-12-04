@@ -146,12 +146,13 @@ void app_handler()
   while (1) {
 	  select {
       	  //TODO: to add xta timing constraint, not to break the signal generation period
-		  case t when timerafter(time+(XS1_TIMER_HZ/SAMP_FREQ)):> time:
+		  //case t when timerafter(time+(XS1_TIMER_HZ/SAMP_FREQ)):> time:
+		  case t when timerafter(time+1000*(XS1_TIMER_HZ/SAMP_FREQ)):> time:  //TODO: remove this quick hack to increase the samples frequency
 	      {
 			write_audio_data(data);
         	//TODO: if a single freq test signal is only required, move the freq into a look-up for a quarter wave period
 			//data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
-			if ((time_idx > 2000) && (time_idx < 60000))
+			if ((time_idx > 200) && (time_idx < 6000))
 			  data = 2048*sin(time_idx*2*3.1415926535*8500/(double)SAMP_FREQ);
 			else
 			  data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
