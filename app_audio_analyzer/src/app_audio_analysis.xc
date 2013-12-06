@@ -16,13 +16,20 @@
 void audio_hw_init(unsigned);
 void audio_hw_config(unsigned samFreq);
 
+typedef struct audio_data {
+  int data[FFT_POINTS];
+  unsigned depth;
+} audio_data;
+audio_data audio_buf_0;
+audio_data audio_buf_1;
+
 #ifdef XSCOPE_DEBUG
 void xscope_user_init(void) {
-      xscope_register(2,
-                      XSCOPE_CONTINUOUS, "ADC-DAC",
-                      XSCOPE_INT, "adc-dac",
-                      XSCOPE_CONTINUOUS, "M_S",
-                      XSCOPE_UINT, "mag_spectrum");
+  xscope_register(2,
+    XSCOPE_CONTINUOUS, "ADC-DAC",
+    XSCOPE_INT, "adc-dac",
+    XSCOPE_CONTINUOUS, "M_S",
+    XSCOPE_UINT, "mag_spectrum");
 }
 
 void output_data_adc_dac(int data_value_1) {
@@ -34,35 +41,43 @@ void output_data_mag_spec(unsigned int data_value_1) {
 }
 #endif //XSCOPE_DEBUG
 
+interface buffer_mgr {
+  void swap_buffers(audio_data * movable &buffer);
+};
+
+#pragma unsafe arrays
 void magnitude_spectrum(int sig1[], int sig2[], unsigned magSpectrum[])
 {
-	int  im[FFT_POINTS];
-	int sig[FFT_POINTS];
+//int  im[FFT_POINTS];
+//int sig[FFT_POINTS];
 
-	// Mixing signals
-	for (int i=0; i<FFT_POINTS; i++)
-	{
-		sig[i] = sig1[i] + sig2[i];
-		im[i] = 0;
-	}
-	// FFT
-	fftTwiddle(sig, im, FFT_POINTS);
-	fftForward(sig, im, FFT_POINTS, FFT_SINE);
+  // Mixing signals
+  for (int i=0; i<FFT_POINTS; i++)	{
+	/* reusing the LR channels for real and imaginary arrays required for FFT computing */
+	sig1[i] +=  sig2[i];
+	sig2[i] = 0;
+  }
 
-	// Magnitude spectrum
-	for (int i=0; i<FFT_POINTS; i++){
-		magSpectrum[i] = sig[i]*sig[i] + im[i]*im[i];
+  // FFT
+  fftTwiddle(sig1, sig2, FFT_POINTS);
+  fftForward(sig1, sig2, FFT_POINTS, FFT_SINE);
+
+  // Magnitude spectrum
+  long long mag_spec;
+  for (int i=0; i<FFT_POINTS; i++) {
+	  mag_spec = sig1[i]*sig1[i] + sig2[i]*sig2[i];
+	  magSpectrum[i] = mag_spec; // >> 32;
 #if LOG_SPEC
-		magSpectrum[i] = (magSpectrum[i]>0)? 10*log(magSpectrum[i]):0;
+	magSpectrum[i] = (magSpectrum[i]>0)? 10*log(magSpectrum[i]):0;
 #endif
-	}
+  }
 }
 
 #define PEAK_RANGE 			5
 #define OTHER_ENERGY_THRESH	50000   //TODO: adjust its validity during tests
 #define GLITCH_THRESHOLD	100000  //TODO: adjust its validity during tests
 
-void audio_analyzer()
+void audio_analyzer(client interface buffer_mgr get_data, audio_data *initial_buffer)
 {
   int sig1[FFT_POINTS], sig2[FFT_POINTS];
   unsigned mag_spec[FFT_POINTS];
@@ -71,15 +86,18 @@ void audio_analyzer()
   unsigned peak_energy;
   unsigned other_energy;
   unsigned other_energy_ctr = 0;
+  audio_data * movable read_data_buffer = initial_buffer;
 
   while (1) {
+	get_data.swap_buffers(read_data_buffer);
+	//if (read_data_buffer->depth > FFT_POINTS/2) {
+	if (1) {
 	  peak_energy = 0;
 	  other_energy = 0;
 	  other_energy_ctr = 0;
 
-	  // compute magnitude spectrum of the signals
 	  for (int i=0; i<FFT_POINTS; i++){
-	    sig1[i] = get_audio_data();
+		sig1[i] = read_data_buffer->data[i];
 		sig2[i] = sig1[i];
 	  }
 	  magnitude_spectrum(sig1, sig2, mag_spec);
@@ -96,8 +114,8 @@ void audio_analyzer()
 	  /* compute spectral peak */
 	  for (int i=0; i<FFT_POINTS/2; i++) {
 		if (max_mag_spec_val < mag_spec[i]) {
-		  max_mag_spec_val = mag_spec[i];
-		  max_mag_spec_idx = i;
+	      max_mag_spec_val = mag_spec[i];
+	      max_mag_spec_idx = i;
 		}
 	  }
 	  write_spectral_result(max_mag_spec_idx, max_mag_spec_val);
@@ -105,29 +123,35 @@ void audio_analyzer()
 	  //perform glitch analysis
 	  int tmp_idx = 0;
 	  for(int i=(-PEAK_RANGE); i<= PEAK_RANGE;i++) {
-		  tmp_idx = max_mag_spec_idx+i;
-		  if (( tmp_idx >= 0) && (tmp_idx < (FFT_POINTS/2)))
+		tmp_idx = max_mag_spec_idx+i;
+		if (( tmp_idx >= 0) && (tmp_idx < (FFT_POINTS/2)))
 			peak_energy += mag_spec[tmp_idx];
 	  }
-
 	  for (int i=0; i<FFT_POINTS/2; i++) {
-        if((i < (max_mag_spec_idx-PEAK_RANGE)) || (i > (max_mag_spec_idx+PEAK_RANGE))) {
-          if(mag_spec[i] > OTHER_ENERGY_THRESH) {
-        	other_energy += mag_spec[i];
-        	other_energy_ctr++;
-          }
-        }
+		if((i < (max_mag_spec_idx-PEAK_RANGE)) || (i > (max_mag_spec_idx+PEAK_RANGE))) {
+		  if(mag_spec[i] > OTHER_ENERGY_THRESH) {
+			other_energy += mag_spec[i];
+			other_energy_ctr++;
+		  }
+		}
 	  }
-	  peak_energy /= (PEAK_RANGE*2+1);
-	  other_energy /= (other_energy_ctr-(PEAK_RANGE*2+1));
-      if(other_energy > (GLITCH_THRESHOLD)) {
-    	debug_printf("glitch suspected!!!\n");
-      }
 
+	  peak_energy /= (PEAK_RANGE*2+1);
+	  //other_energy /= (other_energy_ctr-(PEAK_RANGE*2+1));
+	  if (other_energy_ctr > 0) {
+		other_energy /= other_energy_ctr;
+		if(other_energy > GLITCH_THRESHOLD) {
+		  debug_printf("glitch suspected!!!\n");
+		}
+	  }
+	}
+
+	if (do_spectral_analysis())
+	  analyze_spectral_peaks();
   } //end of while(1)
 }
 
-void app_handler()
+void app_handler(server interface buffer_mgr analyze, audio_data *initial_buffer)
 {
   /* Audio sample buffers */
   unsigned sampsAdc[I2S_MASTER_NUM_CHANS_ADC];
@@ -135,6 +159,7 @@ void app_handler()
   unsigned time;
   int data = 0;
   int time_idx = 0;
+  audio_data * movable audio_data_buffer = initial_buffer;
 
   /* Samples init */
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)  {
@@ -144,49 +169,54 @@ void app_handler()
   t :> time;
 
   while (1) {
-	  select {
-      	  //TODO: to add xta timing constraint, not to break the signal generation period
-		  //case t when timerafter(time+(XS1_TIMER_HZ/SAMP_FREQ)):> time:
-		  case t when timerafter(time+1000*(XS1_TIMER_HZ/SAMP_FREQ)):> time:  //TODO: remove this quick hack to increase the samples frequency
-	      {
-			write_audio_data(data);
-        	//TODO: if a single freq test signal is only required, move the freq into a look-up for a quarter wave period
-			//data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
-			if ((time_idx > 200) && (time_idx < 6000))
-			  data = 2048*sin(time_idx*2*3.1415926535*8500/(double)SAMP_FREQ);
-			else
-			  data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
-#ifdef XSCOPE_DEBUG
-  			output_data_adc_dac(data);
-#endif //XSCOPE_DEBUG
-			time_idx = (time_idx+1)%(XS1_TIMER_HZ/SAMP_FREQ);
-	      }
-		  break;
+    select {
+#pragma ordered
+      case analyze.swap_buffers(audio_data * movable &buffer):
+		if (audio_data_buffer->depth > FFT_POINTS/2) { //just for the slow consumer case
+		  audio_data * movable temp;
+		  temp = move(buffer);
+		  buffer = move(audio_data_buffer);
+		  audio_data_buffer = move(temp);
+		}
+      break;
 
-          default:
-        	if (do_spectral_analysis())
-        	  analyze_spectral_peaks();
-          break;
-          //TODO: to add i2s audio core interface
-	  }
+#pragma xta endpoint "wave1"
+      //case t when timerafter(time+(XS1_TIMER_HZ/SAMP_FREQ)):> time:
+      case t when timerafter(time+10000):> time:
+      {
+    	audio_data_buffer->data[audio_data_buffer->depth] = data;
+    	audio_data_buffer->depth = (audio_data_buffer->depth+1)%FFT_POINTS;
+    	//data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
+    	if ((time_idx > 200) && (time_idx < 6000))
+    	  data = 2048*sin(time_idx*2*3.1415926535*8500/(double)SAMP_FREQ);
+    	else
+    	  data = 2048*sin(time_idx*2*3.1415926535*SIGNAL_FREQ/(double)SAMP_FREQ);
+#ifdef XSCOPE_DEBUG
+		output_data_adc_dac(data);
+#endif //XSCOPE_DEBUG
+		time_idx = (time_idx+1)%(XS1_TIMER_HZ/SAMP_FREQ);
+      }
+      break;
+
+      //TODO: to add i2s audio core interface
+	}
   }
 }
 
 int main(){
-	par {
-		on tile[0]: audio_analyzer();
-		on tile[0]: app_handler();
+  interface buffer_mgr c;
+  par {
+	on tile[0]: audio_analyzer(c, &audio_buf_1);
+	on tile[0]: app_handler(c, &audio_buf_0);
 #if 0
-        on tile[AUDIO_IO_CORE] :
-        {
-            unsigned mclk_bclk_div = MCLK_FREQ/(SAMP_FREQ * 64);
-            audio_hw_init(mclk_bclk_div);
-            audio_hw_config(SAMP_FREQ);
-            i2s_master(i2s_resources, c_data, mclk_bclk_div);
-        }
-#endif
+	on tile[AUDIO_IO_CORE] : {
+      unsigned mclk_bclk_div = MCLK_FREQ/(SAMP_FREQ * 64);
+      audio_hw_init(mclk_bclk_div);
+      audio_hw_config(SAMP_FREQ);
+      i2s_master(i2s_resources, c_data, mclk_bclk_div);
 	}
-
-	return 0;
+#endif
+  }
+  return 0;
 }
 

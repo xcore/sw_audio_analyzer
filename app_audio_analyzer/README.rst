@@ -2,7 +2,7 @@ Audio analyzer
 ==============
 
 :scope: Test application
-:description: An application to detect the audio signal presence, report its frequency, indetify any silence or glitches
+:description: An application to detect the audio signal presence, report its frequency, identify any silence or glitches
 :keywords: FFT, signal, spectrum
 :boards: XA-SKC-L16, XA-SK-AUDIO
 

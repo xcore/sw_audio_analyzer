@@ -15,35 +15,14 @@ unsigned lkup_fft_256[NUM_LUT_ENTRIES][2] = {
 		{123, 699005}, //23000 hz
 };
 
-typedef struct data_buf {
-  int circ_buf[2][FFT_POINTS];
-  unsigned read_ptr;
-  unsigned write_ptr;
-} data_buf;
-
 typedef struct spectral_buf {
   unsigned value[FFT_PEAK_POINTS][2];//{peak_index:value} pairs
   unsigned index;
   unsigned depth;
 } spectral_buf;
 
-data_buf data_buffer;
 spectral_buf spectral_peaks;
 
-void write_audio_data(int data)
-{
-  unsigned write_ptr = data_buffer.write_ptr;
-  data_buffer.circ_buf[0][write_ptr] = data;
-  data_buffer.write_ptr = (write_ptr+1)%256;
-}
-
-int get_audio_data()
-{
-  unsigned read_ptr = data_buffer.read_ptr;
-  int data = data_buffer.circ_buf[0][read_ptr];
-  data_buffer.read_ptr = (read_ptr+1)%256;
-  return data;
-}
 
 void write_spectral_result(unsigned peak_index, unsigned peak_value)
 {
