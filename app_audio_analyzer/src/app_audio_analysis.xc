@@ -9,6 +9,7 @@
 #include "app_global.h"
 #include "ports.h"
 #include "fft.h"
+#include "hann.h"
 
 #include "debug_print.h"
 #include "analyzer.h"
@@ -98,8 +99,18 @@ void audio_analyzer(client interface buffer_mgr get_data, audio_data *initial_bu
 
 	  for (int i=0; i<FFT_POINTS; i++){
 		sig1[i] = read_data_buffer->data[i];
-		sig2[i] = sig1[i];
 	  }
+
+	  /* Apply a hann window function to reduce the spectral leakage
+	   * and to improve peak amplitude */
+
+	  /* sig2 is where the windowed result on sig1 is collected.
+	   * Later this value is assigned to sig1 (assuming LR channels ve same test data */
+	  windowHann(sig2, sig1, 0, FFT_POINTS, FFT_SINE);
+	  for (int i=0; i<FFT_POINTS; i++){
+		sig1[i] = sig2[i];
+	  }
+	  /* perform FFT and compute magnitude spectrum */
 	  magnitude_spectrum(sig1, sig2, mag_spec);
 	  mag_spec[0] = 0;	// Set DC component to 0
 	  max_mag_spec_val = 0;
