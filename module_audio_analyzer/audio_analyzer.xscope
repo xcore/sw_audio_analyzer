@@ -1,0 +1,6 @@
+<xSCOPEconfig>
+  <Module name="Audio Analyzer" id="AUDIO_ANALYZER">
+    <Probe name="Chan 0 ADC Data" type="CONTINUOUS" datatype="INT" units=""/>
+    <Probe name="Mag Spec" type="DISCRETE" datatype="UINT" units=""/>
+  </Module>
+</xSCOPEconfig>

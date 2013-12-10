@@ -9,18 +9,26 @@ TARGET = SLICEKIT-L16
 APP_NAME = 
 
 # The USED_MODULES variable lists other module used by the application.
-USED_MODULES = module_fft_simple module_i2c_single_port module_i2s_master module_logging
+USED_MODULES = module_audio_analyzer module_i2c_single_port module_i2s_master module_logging
 
 # The flags passed to xcc when building the application
 # You can also set the following to override flags for a particular language:
 # XCC_XC_FLAGS, XCC_C_FLAGS, XCC_ASM_FLAGS, XCC_CPP_FLAGS
 # If the variable XCC_MAP_FLAGS is set it overrides the flags passed to
 # xcc for the final link (mapping) stage.
-XCC_FLAGS_Debug = -O0 -g -report -fxscope
-XCC_FLAGS_Release = -O3 -g -report -fxscope
+XCC_FLAGS = -O3 -g -report -fxscope
+XCC_FLAGS_Loopback = $(XCC_FLAGS) -DSIMULATOR_LOOPBACK=1
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make system.
 VERBOSE = 0
 
+test:
+	axe --loopback XS1_PORT_1F XS1_PORT_1A --loopback XS1_PORT_1E XS1_PORT_1D bin/Loopback/app_audio_analyzer_Loopback.xe
+
+
+#=============================================================================
+# The following part of the Makefile includes the common build infrastructure
+# for compiling XMOS applications. You should not need to edit below here.
+
 XMOS_MAKE_PATH ?= ../..
--include $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common
+include $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common

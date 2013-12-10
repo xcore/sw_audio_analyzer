@@ -1,0 +1,1 @@
+DEPENDENT_MODULES = module_fft_simple module_window module_logging module_i2s_master
