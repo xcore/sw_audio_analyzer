@@ -20,7 +20,7 @@ interface audio_analysis_if {
 /** An FFT based audio analyzer.
  *
  */
-void audio_analyzer(server interface audio_analysis_if get_data);
+void audio_analyzer(server interface audio_analysis_if get_data, unsigned sample_rate);
 
 void i2s_tap(streaming chanend c_i2s,
              streaming chanend c_samples_out,

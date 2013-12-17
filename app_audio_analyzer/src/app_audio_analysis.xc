@@ -27,12 +27,20 @@ out port p_dummy_clk = on tile[0]: XS1_PORT_1F;
 /* This function generates the output signal for the DAC */
 static void signal_gen(streaming chanend c_dac_samples)
 {
-  // output a test 6khz wav
-  int sine_lut[6] = {0, 2048, 2048, 0, -2048, -2048};
+  // output a test 8khz wav with occasional glitch
+  int sine_lut[6] = {0, 1002048, 1002048, 0, -1002048, -1002048};
   int count = 0;
+  int gcount = 0;
   while (1) {
+    int sample = sine_lut[count];
+    gcount++;
+    if (gcount > 5432) {
+      sample = 0;
+      gcount = 0;
+    }
+
     for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
-      c_dac_samples <: sine_lut[count];
+      c_dac_samples <: sample;
     }
     count++;
     if (count > 5)
@@ -44,7 +52,7 @@ int main(){
   interface audio_analysis_if i;
   streaming chan c_i2s_data, c_dac_samples;
   par {
-	  on tile[0]: audio_analyzer(i);
+	  on tile[0]: audio_analyzer(i, 48000);
 	  on tile[0]: i2s_tap(c_i2s_data, c_dac_samples, i);
 	  on tile[0]:
 	    {
