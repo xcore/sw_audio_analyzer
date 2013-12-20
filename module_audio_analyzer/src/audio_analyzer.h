@@ -14,16 +14,29 @@ interface audio_analysis_if {
    * provided buffer. The buffer variable will be updated to the previously
    * analyzed buffer to be re-filled.
    */
-  void do_analysis_and_swap_buffers(int * movable &buffer);
+  void swap_buffers(int * movable &buffer);
 };
+
+interface audio_analysis_scheduler_if {
+  [[notification]] slave void ready();
+  [[clears_notification]] void do_analysis();
+};
+
 
 /** An FFT based audio analyzer.
  *
  */
-void audio_analyzer(server interface audio_analysis_if get_data, unsigned sample_rate);
+[[combinable]]
+void audio_analyzer(server interface audio_analysis_if get_data,
+                    server interface audio_analysis_scheduler_if i_sched,
+                    unsigned sample_rate, unsigned chan_id);
+
+[[combinable]]
+void analysis_scheduler(client interface audio_analysis_scheduler_if i[n], unsigned n);
 
 void i2s_tap(streaming chanend c_i2s,
              streaming chanend c_samples_out,
-             client interface audio_analysis_if analyzer);
+             client interface audio_analysis_if analyzer[n],
+             unsigned n);
 
 #endif /* AUDIO_ANALYZER_H_ */

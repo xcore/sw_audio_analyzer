@@ -37,23 +37,27 @@ static void unsplit_movable_array(int * movable &a, int * movable b[n],
 
 void i2s_tap(streaming chanend c_i2s,
              streaming chanend c_dac_samples,
-             client interface audio_analysis_if analyzer)
+             client interface audio_analysis_if analyzer[n],
+             unsigned n)
 {
   /* Audio sample buffers */
-  int buffer[AUDIO_ANALYZER_FFT_SIZE * I2S_MASTER_NUM_CHANS_ADC];
+  int buffer[AUDIO_ANALYZER_FFT_SIZE/2 * I2S_MASTER_NUM_CHANS_ADC];
   int * movable p_buf = buffer;
   int * movable buf[I2S_MASTER_NUM_CHANS_ADC];
   unsigned count = 0;
+  unsigned ignore_count = 20000;
   debug_printf("Starting I2S sample tap\n");
-  split_movable_array(move(p_buf), buf, I2S_MASTER_NUM_CHANS_ADC, AUDIO_ANALYZER_FFT_SIZE);
+  split_movable_array(move(p_buf), buf, I2S_MASTER_NUM_CHANS_ADC, AUDIO_ANALYZER_FFT_SIZE/2);
   while (1) {
     select {
-      case c_i2s :> int first_sample:
+      case c_i2s :> unsigned first_sample:
         xscope_int(AUDIO_ANALYZER_CHAN_0_ADC_DATA, first_sample);
 
-        buf[0][count] = first_sample;
+        buf[0][count] = first_sample << 9;
         for (int i = 1; i < I2S_MASTER_NUM_CHANS_ADC; i++) {
-          c_i2s :> buf[i][count];
+          unsigned sample;
+          c_i2s :> sample;
+          buf[i][count] = sample << 9;
         }
 
         for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
@@ -62,10 +66,14 @@ void i2s_tap(streaming chanend c_i2s,
           c_i2s <: sample;
         }
 
-        // TODO: handle multiple stream analysis
+        if (ignore_count) {
+          ignore_count--;
+          break;
+        }
         count++;
-        if (count == AUDIO_ANALYZER_FFT_SIZE) {
-          analyzer.do_analysis_and_swap_buffers(buf[0]);
+        if (count == AUDIO_ANALYZER_FFT_SIZE/2) {
+            for (int i = 0; i < n; i++)
+              analyzer[i].swap_buffers(buf[i]);
           count = 0;
         }
 
