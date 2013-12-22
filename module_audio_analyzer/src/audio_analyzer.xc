@@ -8,12 +8,13 @@
 
 #define DUMP_FIRST_ANALYSIS 0
 
-#define SIGNAL_DETECT_THRESHOLD       30000000
-#define SIGNAL_DETECT_COUNT_THRESHOLD 5
+#define SIGNAL_DETECT_THRESHOLD       90000000
+#define SIGNAL_DETECT_COUNT_THRESHOLD 15
 
 #define PEAK_IGNORE_WINDOW              15
 #define NOISE_FLOOR                     25
-#define GLITCH_NOISE_TOLERANCE          10
+#define GLITCH_TOLERANCE_RATIO_A       7
+#define GLITCH_TOLERANCE_RATIO_B       25
 #define LOW_FREQUENCY_IGNORE_THRESHOLD  5
 
 // This function does a very fast but quite innacurate log2 calculation
@@ -28,7 +29,7 @@ static unsigned fastlog2(unsigned long long v)
 
 static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
                             unsigned sample_rate, int &reported_freq,
-                            int &reported_glitch)
+                            int &reported_glitch, int &peak_freq)
 {
   int im[AUDIO_ANALYZER_FFT_SIZE];
   int wsig[AUDIO_ANALYZER_FFT_SIZE];
@@ -64,10 +65,15 @@ static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
     }
   }
 
+  if (max_val < NOISE_FLOOR)
+    return;
+  max_val -= NOISE_FLOOR;
+
   if (!reported_freq) {
     unsigned freq;
+    peak_freq = max_val;
     freq = ((unsigned long long) max_index * sample_rate) / AUDIO_ANALYZER_FFT_SIZE;
-    debug_printf("Channel %u: Frequency %u\n", chan_id, ((freq+125)/250)*250);
+    debug_printf("Channel %u: Frequency %u (mag: %d)\n", chan_id, ((freq+125)/250)*250, max_val);
     reported_freq = 1;
   }
 
@@ -79,15 +85,21 @@ static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
     exit(0);
   }
 
+  unsigned tolerance = max_val * GLITCH_TOLERANCE_RATIO_A / GLITCH_TOLERANCE_RATIO_B;
+
   // Check for a glitch
   for (int i = LOW_FREQUENCY_IGNORE_THRESHOLD; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
     if (i >= max_index - PEAK_IGNORE_WINDOW && i < max_index + PEAK_IGNORE_WINDOW)
       continue;
-    if (mag[i] - NOISE_FLOOR > GLITCH_NOISE_TOLERANCE) {
+    if (mag[i] < NOISE_FLOOR)
+      continue;
+    unsigned mag_i = mag[i] - NOISE_FLOOR;
+
+    if (mag_i > tolerance) {
       // Found a glitch
       if (!reported_glitch) {
-        debug_printf("Channel %u: glitch detected (index %u, magnitude %d)\n", chan_id, i, mag[i]);
-        if (chan_id == 0) {
+        debug_printf("Channel %u: glitch detected (index %u, magnitude %d)\n", chan_id, i, mag_i);
+        if (chan_id == 1 && 0) {
           for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE; i++) {
             debug_printf("%d,", sig[i]);
           }
@@ -113,6 +125,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
   memset(sig, 0, sizeof(sig));
   int signal_started = 0, sig_detect_count = 0;
   int reported_freq = 0, reported_glitch = 0;
+  int peak_freq = 0;
   while (1) {
     // Wait until the other side gives us a buffer to analyze
     select {
@@ -121,6 +134,8 @@ void audio_analyzer(server interface audio_analysis_if i_client,
       tmp = move(pbuf);
       pbuf = move(other);
       other = move(tmp);
+      // This task will not analyze this buffer straight away but will
+      // just notify the scheduler that it is ready to go
       scheduler.ready();
       break;
     case scheduler.do_analysis():
@@ -130,21 +145,26 @@ void audio_analyzer(server interface audio_analysis_if i_client,
       memmove(sig, &sig[AUDIO_ANALYZER_FFT_SIZE/2], AUDIO_ANALYZER_FFT_SIZE/2 * sizeof(int));
       memcpy(&sig[AUDIO_ANALYZER_FFT_SIZE/2], buf, AUDIO_ANALYZER_FFT_SIZE/2 * sizeof(int));
       if (!signal_started) {
+        unsigned max_amp = 0;
         for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
           unsigned amp = buf[i] > 0 ? buf[i] : -buf[i];
-          if (amp > SIGNAL_DETECT_THRESHOLD) {
-            sig_detect_count++;
-            if (sig_detect_count > SIGNAL_DETECT_COUNT_THRESHOLD) {
-              signal_started = 1;
-              debug_printf("Channel %u: Signal detected (amplitute: %u)\n",
-                  chan_id, amp);
-              break;
-            }
+          if (amp > max_amp)
+            max_amp = amp;
+        }
+        if (max_amp > SIGNAL_DETECT_THRESHOLD) {
+          sig_detect_count++;
+          if (sig_detect_count > SIGNAL_DETECT_COUNT_THRESHOLD) {
+            signal_started = 1;
+            debug_printf("Channel %u: Signal detected (amplitute: %u)\n",
+                chan_id, max_amp);
           }
+        }
+        else {
+          sig_detect_count = 0;
         }
       }
       else {
-        do_fft_analysis(sig, chan_id, sample_rate, reported_freq, reported_glitch);
+        do_fft_analysis(sig, chan_id, sample_rate, reported_freq, reported_glitch, peak_freq);
       }
       break;
     }
