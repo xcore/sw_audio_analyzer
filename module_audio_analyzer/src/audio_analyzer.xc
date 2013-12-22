@@ -67,7 +67,7 @@ static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
   if (!reported_freq) {
     unsigned freq;
     freq = ((unsigned long long) max_index * sample_rate) / AUDIO_ANALYZER_FFT_SIZE;
-    debug_printf("Channel %u: Frequency %u\n", chan_id, ((freq+50)/100)*100);
+    debug_printf("Channel %u: Frequency %u\n", chan_id, ((freq+125)/250)*250);
     reported_freq = 1;
   }
 
