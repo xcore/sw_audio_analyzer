@@ -42,7 +42,7 @@ on tile[1] : r_i2s i2s_resources =
 clock dummy_clk = on tile[1]: XS1_CLKBLK_3;
 out port p_dummy_clk = on tile[1]: XS1_PORT_1J;
 
-#define MAX_SINE_PERIOD 400
+#define MAX_SINE_PERIOD 500
 
 static unsigned gcd(unsigned u, unsigned v) {
     while ( v != 0) {
@@ -71,7 +71,7 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
     for (int j = 0; j < period[i];j++) {
       float ratio = (double) sample_freq / (double) freq;
       float x = sinf(((float) j) * 2 * M_PI / ratio);
-      sine_table[i][j] = (int) (x * ldexp(2, 27));
+      sine_table[i][j] = (int) (x * ldexp(2, 25));
     }
   }
   debug_printf("Generating signals.\n");
@@ -100,40 +100,47 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
   }
 }
 
+static void audio(streaming chanend c_i2s_data) {
+  // First make sure the i2s client is ready
+  for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
+    c_i2s_data <: 0;
+  for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++)
+    c_i2s_data :> int _;
+
+  // Initialize hardware
+  if (SIMULATOR_LOOPBACK) {
+    // approximate 24.576 with 25Mhz output (this will be loopbacked by simulator
+    // into the MCLK input)
+    configure_clock_rate(dummy_clk, 100, 4);
+    configure_port_clock_output(p_dummy_clk, dummy_clk);
+    start_clock(dummy_clk);
+  }
+  else {
+    debug_printf("Initializing Hardware\n");
+    AudioHwInit();
+  }
+
+  // Go into the I2S loop
+  debug_printf("Starting I2S\n");
+  i2s_master(i2s_resources, c_i2s_data, MCLK_FREQ / (SAMP_FREQ * 64));
+}
+
 int main(){
-  interface audio_analysis_if i[4];
+  interface audio_analysis_if i_analysis[4];
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
   streaming chan c_i2s_data, c_dac_samples;
   par {
-	  on tile[0].core[0]: audio_analyzer(i[0], i_sched0[0], SAMP_FREQ, 0);
-    on tile[0].core[0]: audio_analyzer(i[1], i_sched0[1], SAMP_FREQ, 1);
+	  on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0);
+    on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1);
     on tile[0].core[0]: analysis_scheduler(i_sched0, 2);
 
-    on tile[0].core[1]: audio_analyzer(i[2], i_sched1[0], SAMP_FREQ, 2);
-    on tile[0].core[1]: audio_analyzer(i[3], i_sched1[1], SAMP_FREQ, 3);
+    on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2);
+    on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3);
     on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
 
-    on tile[0]: i2s_tap(c_i2s_data, c_dac_samples, i, 4);
+    on tile[0]: i2s_tap(c_i2s_data, c_dac_samples, i_analysis, 4);
 
-    on tile[1]:
-	    {
-	      for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
-	        c_i2s_data <: 0;
-	      for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++)
-	        c_i2s_data :> int _;
-	      if (SIMULATOR_LOOPBACK) {
-	        // approximate 24.576 with 25Mhz output (this will be loopbacked by simulator
-	        // into the MCLK input)
-	        configure_clock_rate(dummy_clk, 100, 4);
-	        configure_port_clock_output(p_dummy_clk, dummy_clk);
-	        start_clock(dummy_clk);
-	      }
-	      else {
-	        debug_printf("Initializing Hardware\n");
-	        AudioHwInit();
-	      }
-	      i2s_master(i2s_resources, c_i2s_data, MCLK_FREQ / (SAMP_FREQ * 64));
-	    }
+    on tile[1]: audio(c_i2s_data);
 	  on tile[1]: genclock();
 	  on tile[1]: signal_gen(c_dac_samples, SAMP_FREQ);
   }
