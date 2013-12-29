@@ -35,8 +35,16 @@ on tile[1] : r_i2s i2s_resources =
   PORT_CLK_MAS,
   PORT_CLK_BIT,
   PORT_CLK_LR,
+#if I2S_MASTER_NUM_CHANS_ADC == 2
+  {PORT_ADC_0},
+#else
   {PORT_ADC_0, PORT_ADC_1},
+#endif
+#if I2S_MASTER_NUM_CHANS_DAC == 2
+  {PORT_DAC_0},
+#else
   {PORT_DAC_0, PORT_DAC_1},
+#endif
 };
 
 clock dummy_clk = on tile[1]: XS1_CLKBLK_3;
@@ -53,6 +61,20 @@ static unsigned gcd(unsigned u, unsigned v) {
     return u;
 }
 
+enum chan_conf_type {
+  NO_SIGNAL,
+  SINE
+};
+
+typedef struct chan_conf_t {
+  enum chan_conf_type type;
+  unsigned freq;
+  unsigned do_glitch;
+  unsigned glitch_period;
+} chan_conf_t;
+
+chan_conf_t chan_conf[I2S_MASTER_NUM_CHANS_DAC] = CHAN_CONFIG;
+
 /* This function generates the output signal for the DAC */
 static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
 {
@@ -61,7 +83,9 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
   // output a test 1khz wav with occasional glitch
   debug_printf("Generating sine tables\n");
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
-    int freq = (i+1) * 1000;
+    if (chan_conf[i].type == NO_SIGNAL)
+      continue;
+    int freq = chan_conf[i].freq;
     unsigned d = gcd(freq, sample_freq);
     period[i] = freq/d * sample_freq/d;
     debug_printf("Generating sine table for chan %u, frequency %u, period %u\n", i, freq, period[i]);
@@ -75,17 +99,11 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
     }
   }
   debug_printf("Generating signals.\n");
- // int sine_lut[48] = {0,140151431,277904833,410903206,536870911,653652607,759250124,851856662,929887696,992008094,1037154958,1064555813,1073741824,1064555813,1037154958,992008094,929887696,851856662,759250124,653652607,536870911,410903206,277904833,140151431,0,-140151431,-277904833,-410903206,-536870911,-653652607,-759250124,-851856662,-929887696,-992008094,-1037154958,-1064555813,-1073741824,-1064555813,-1037154958,-992008094,-929887696,-851856662,-759250124,-653652607,-536870912,-410903206,-277904833,-1401514310};
   int count[I2S_MASTER_NUM_CHANS_DAC];
+  int gcount[I2S_MASTER_NUM_CHANS_DAC];
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++)
-    count[i] = 0;
-  int gcount = 1;
+    count[i] = gcount[i] = 0;
   while (1) {
-    gcount++;
-    if (gcount > 55452) {
-      //sample = 0;
-      gcount = 0;
-    }
 
     for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
       unsigned sample = sine_table[i][count[i]];
@@ -93,8 +111,11 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
       count[i]++;
       if (count[i] >= period[i])
         count[i] = 0;
-      if (i == 1 && gcount == 0)
-          sample = 0;
+      gcount[i]++;
+      if (chan_conf[i].do_glitch && gcount[i] > chan_conf[i].glitch_period) {
+        gcount[i] = 0;
+        sample = 0;
+      }
       c_dac_samples <: sample;
     }
   }

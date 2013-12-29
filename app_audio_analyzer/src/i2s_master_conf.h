@@ -1,3 +1,1 @@
-#define I2S_MASTER_NUM_CHANS_ADC 4
-
-#define I2S_MASTER_NUM_CHANS_DAC 4
+#include "app_config.h"

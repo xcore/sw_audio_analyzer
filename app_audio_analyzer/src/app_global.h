@@ -4,6 +4,7 @@
 
 #include <xs1.h>
 #include <platform.h>
+#include "app_config.h"
 
 /* Core that Audio Slice is connected to */
 #define AUDIO_IO_CORE 		            1
