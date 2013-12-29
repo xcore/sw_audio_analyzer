@@ -88,7 +88,8 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
     int freq = chan_conf[i].freq;
     unsigned d = gcd(freq, sample_freq);
     period[i] = freq/d * sample_freq/d;
-    debug_printf("Generating sine table for chan %u, frequency %u, period %u\n", i, freq, period[i]);
+    debug_printf("Generating sine table for chan %u, frequency %u, period %u\n",
+                 i, freq, period[i]);
     if (period[i] > MAX_SINE_PERIOD) {
       fail("Period of sine wave (w.r.t. sample rate) too large to calculate\n");
     }
@@ -130,8 +131,8 @@ static void audio(streaming chanend c_i2s_data) {
 
   // Initialize hardware
   if (SIMULATOR_LOOPBACK) {
-    // approximate 24.576 with 25Mhz output (this will be loopbacked by simulator
-    // into the MCLK input)
+    // approximate 24.576 with 25Mhz output (this will be loopbacked
+    // by simulator into the MCLK input)
     configure_clock_rate(dummy_clk, 100, 4);
     configure_port_clock_output(p_dummy_clk, dummy_clk);
     start_clock(dummy_clk);
@@ -159,7 +160,8 @@ int main(){
     on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3);
     on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
 
-    on tile[0]: i2s_tap(c_i2s_data, c_dac_samples, i_analysis, 4);
+    on tile[0]: i2s_tap(c_i2s_data, c_dac_samples,
+                        i_analysis, I2S_MASTER_NUM_CHANS_DAC);
 
     on tile[1]: audio(c_i2s_data);
 	  on tile[1]: genclock();

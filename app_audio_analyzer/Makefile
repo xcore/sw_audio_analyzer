@@ -27,10 +27,6 @@ INCLUDE_ONLY_IN_GlitchInjector = src/config_GlitchInjector
 INCLUDE_ONLY_IN_TestDevice1 = src/config_TestDevice1
 INCLUDE_ONLY_IN_TestDevice2 = src/config_TestDevice2
 
-ifeq ($(CONFIG),SimulatorLoopback)
-EXCLUDE_DIRS=./src/xscope
-endif
-
 # The VERBOSE variable, if set to 1, enables verbose output from the make system.
 VERBOSE = 0
 
