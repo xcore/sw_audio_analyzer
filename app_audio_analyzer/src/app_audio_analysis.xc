@@ -80,6 +80,7 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
 {
   int sine_table[I2S_MASTER_NUM_CHANS_DAC][MAX_SINE_PERIOD];
   unsigned period[I2S_MASTER_NUM_CHANS_DAC];
+
   // output a test 1khz wav with occasional glitch
   debug_printf("Generating sine tables\n");
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
@@ -98,6 +99,9 @@ static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
       float x = sinf(((float) j) * 2 * M_PI / ratio);
       sine_table[i][j] = (int) (x * ldexp(2, 25));
     }
+    if (chan_conf[i].do_glitch)
+      debug_printf("Channel %u will glitch with period %u samples\n", i,
+                   chan_conf[i].glitch_period);
   }
   debug_printf("Generating signals.\n");
   int count[I2S_MASTER_NUM_CHANS_DAC];
