@@ -98,7 +98,7 @@ static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
     if (mag_i > tolerance) {
       // Found a glitch
       if (!reported_glitch) {
-        debug_printf("Channel %u: glitch detected (index %u, magnitude %d)\n", chan_id, i, mag_i);
+        debug_printf("ERROR: Channel %u: glitch detected (index %u, magnitude %d)\n", chan_id, i, mag_i);
         if (chan_id == 1 && 0) {
           for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE; i++) {
             debug_printf("%d,", sig[i]);
@@ -125,6 +125,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
   memset(sig, 0, sizeof(sig));
   int signal_started = 0, sig_detect_count = 0;
   int reported_freq = 0, reported_glitch = 0;
+  int lost_signal = 0, reported_interrupt = 0;
   int peak_freq = 0;
   while (1) {
     // Wait until the other side gives us a buffer to analyze
@@ -144,23 +145,37 @@ void audio_analyzer(server interface audio_analysis_if i_client,
       // We then shift the samples up from the previous window to get the a full sliding window
       memmove(sig, &sig[AUDIO_ANALYZER_FFT_SIZE/2], AUDIO_ANALYZER_FFT_SIZE/2 * sizeof(int));
       memcpy(&sig[AUDIO_ANALYZER_FFT_SIZE/2], buf, AUDIO_ANALYZER_FFT_SIZE/2 * sizeof(int));
+      unsigned max_amp = 0;
+      for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
+        unsigned amp = buf[i] > 0 ? buf[i] : -buf[i];
+        if (amp > max_amp)
+          max_amp = amp;
+      }
       if (!signal_started) {
-        unsigned max_amp = 0;
-        for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
-          unsigned amp = buf[i] > 0 ? buf[i] : -buf[i];
-          if (amp > max_amp)
-            max_amp = amp;
-        }
         if (max_amp > SIGNAL_DETECT_THRESHOLD) {
           sig_detect_count++;
           if (sig_detect_count > SIGNAL_DETECT_COUNT_THRESHOLD) {
             signal_started = 1;
             debug_printf("Channel %u: Signal detected (amplitute: %u)\n",
                 chan_id, max_amp);
+            sig_detect_count = 0;
           }
         }
         else {
           sig_detect_count = 0;
+        }
+      }
+      else if (max_amp < SIGNAL_DETECT_THRESHOLD) {
+        if (!lost_signal) {
+          debug_printf("Channel %u: Lost signal\n", chan_id);
+          lost_signal = 1;
+        }
+      }
+      else if (lost_signal && max_amp > SIGNAL_DETECT_COUNT_THRESHOLD) {
+        if (!reported_interrupt) {
+          debug_printf("Channel %u: Resumed signal\n", chan_id);
+          debug_printf("ERROR: Channel %u: Interrupted signal\n", chan_id);
+          reported_interrupt = 1;
         }
       }
       else {
