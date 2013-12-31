@@ -160,12 +160,19 @@ int main(){
     on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3);
     on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
 
-    on tile[0]: i2s_tap(c_i2s_data, c_dac_samples,
-                        i_analysis, I2S_MASTER_NUM_CHANS_DAC);
+    on tile[0]: {
+      if (SIMULATOR_LOOPBACK)
+        xscope_config_io(XSCOPE_IO_NONE);
+      i2s_tap(c_i2s_data, c_dac_samples, i_analysis, I2S_MASTER_NUM_CHANS_DAC);
+    }
 
     on tile[1]: audio(c_i2s_data);
 	  on tile[1]: genclock();
-	  on tile[1]: signal_gen(c_dac_samples, SAMP_FREQ);
+	  on tile[1]: {
+	    if (SIMULATOR_LOOPBACK)
+	      xscope_config_io(XSCOPE_IO_NONE);
+	    signal_gen(c_dac_samples, SAMP_FREQ);
+	  }
   }
   return 0;
 }

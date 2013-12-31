@@ -9,7 +9,7 @@ TARGET = xr-usb-audio-2.0-mc
 APP_NAME = 
 
 # The USED_MODULES variable lists other module used by the application.
-USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master module_logging module_xassert
+USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master  module_logging module_xassert
 
 # The flags passed to xcc when building the application
 # You can also set the following to override flags for a particular language:
@@ -18,9 +18,9 @@ USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master module_
 # xcc for the final link (mapping) stage.
 COMMON_FLAGS = -O3 -g -report -save-temps
 XCC_FLAGS_SimulatorLoopback = $(COMMON_FLAGS) -DSIMULATOR_LOOPBACK=1
-XCC_FLAGS_GlitchInjector = $(COMMON_FLAGS) -fxscope
-XCC_FLAGS_TestDevice1 = $(COMMON_FLAGS) -fxscope
-XCC_FLAGS_TestDevice2 = $(COMMON_FLAGS) -fxscope
+XCC_FLAGS_GlitchInjector = $(COMMON_FLAGS)
+XCC_FLAGS_TestDevice1 = $(COMMON_FLAGS)
+XCC_FLAGS_TestDevice2 = $(COMMON_FLAGS)
 
 INCLUDE_ONLY_IN_SimulatorLoopback = src/config_SimulatorLoopback
 INCLUDE_ONLY_IN_GlitchInjector = src/config_GlitchInjector
