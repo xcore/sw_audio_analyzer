@@ -1,6 +1,5 @@
 #include <platform.h>
 #include <xs1.h>
-#include <math.h>
 #include <xscope.h>
 #include "i2s_master.h"
 #include "audio_analyzer.h"
@@ -9,6 +8,7 @@
 #include "timer.h"
 #include "debug_print.h"
 #include "xassert.h"
+#include "signal_gen.h"
 
 #ifndef SIMULATOR_LOOPBACK
 #define SIMULATOR_LOOPBACK 0
@@ -50,81 +50,6 @@ on tile[1] : r_i2s i2s_resources =
 clock dummy_clk = on tile[1]: XS1_CLKBLK_3;
 out port p_dummy_clk = on tile[1]: XS1_PORT_1J;
 
-#define MAX_SINE_PERIOD 500
-
-static unsigned gcd(unsigned u, unsigned v) {
-    while ( v != 0) {
-        unsigned r = u % v;
-        u = v;
-        v = r;
-    }
-    return u;
-}
-
-enum chan_conf_type {
-  NO_SIGNAL,
-  SINE
-};
-
-typedef struct chan_conf_t {
-  enum chan_conf_type type;
-  unsigned freq;
-  unsigned do_glitch;
-  unsigned glitch_period;
-} chan_conf_t;
-
-chan_conf_t chan_conf[I2S_MASTER_NUM_CHANS_DAC] = CHAN_CONFIG;
-
-/* This function generates the output signal for the DAC */
-static void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq)
-{
-  int sine_table[I2S_MASTER_NUM_CHANS_DAC][MAX_SINE_PERIOD];
-  unsigned period[I2S_MASTER_NUM_CHANS_DAC];
-
-  // output a test 1khz wav with occasional glitch
-  debug_printf("Generating sine tables\n");
-  for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
-    if (chan_conf[i].type == NO_SIGNAL)
-      continue;
-    int freq = chan_conf[i].freq;
-    unsigned d = gcd(freq, sample_freq);
-    period[i] = freq/d * sample_freq/d;
-    debug_printf("Generating sine table for chan %u, frequency %u, period %u\n",
-                 i, freq, period[i]);
-    if (period[i] > MAX_SINE_PERIOD) {
-      fail("Period of sine wave (w.r.t. sample rate) too large to calculate\n");
-    }
-    for (int j = 0; j < period[i];j++) {
-      float ratio = (double) sample_freq / (double) freq;
-      float x = sinf(((float) j) * 2 * M_PI / ratio);
-      sine_table[i][j] = (int) (x * ldexp(2, 25));
-    }
-    if (chan_conf[i].do_glitch)
-      debug_printf("Channel %u will glitch with period %u samples\n", i,
-                   chan_conf[i].glitch_period);
-  }
-  debug_printf("Generating signals.\n");
-  int count[I2S_MASTER_NUM_CHANS_DAC];
-  int gcount[I2S_MASTER_NUM_CHANS_DAC];
-  for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++)
-    count[i] = gcount[i] = 0;
-  while (1) {
-
-    for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
-      unsigned sample = sine_table[i][count[i]];
-      sample >>= 8;
-      count[i]++;
-      if (count[i] >= period[i])
-        count[i] = 0;
-      gcount[i]++;
-      if (chan_conf[i].do_glitch && gcount[i] > chan_conf[i].glitch_period) {
-        gcount[i] = 0;
-        sample = 0;
-      }
-      c_dac_samples <: sample;
-    }
-  }
-}
 
 static void audio(streaming chanend c_i2s_data) {
   // First make sure the i2s client is ready
@@ -151,6 +76,8 @@ static void audio(streaming chanend c_i2s_data) {
   i2s_master(i2s_resources, c_i2s_data, MCLK_FREQ / (SAMP_FREQ * 64));
 }
 
+chan_conf_t chan_conf[I2S_MASTER_NUM_CHANS_DAC] = CHAN_CONFIG;
+
 int main(){
   interface audio_analysis_if i_analysis[4];
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
@@ -175,7 +102,7 @@ int main(){
 	  on tile[1]: {
 	    if (SIMULATOR_LOOPBACK)
 	      xscope_config_io(XSCOPE_IO_NONE);
-	    signal_gen(c_dac_samples, SAMP_FREQ);
+	    signal_gen(c_dac_samples, SAMP_FREQ, chan_conf);
 	  }
   }
   return 0;
