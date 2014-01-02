@@ -60,7 +60,7 @@ static void PllMult(unsigned mult)
     CS2300_REGWRITE(CS2300_RATIO_3, (mult << 4) & 0xFF);
     CS2300_REGWRITE(CS2300_RATIO_4, 0x00);
 
-	/* Read back and check */
+    /* Read back and check */
     CS2300_REGREAD_ASSERT(CS2300_RATIO_1, data, ((mult >> 12) & 0xFF));
     CS2300_REGREAD_ASSERT(CS2300_RATIO_2, data, ((mult >> 4) & 0xFF));
     CS2300_REGREAD_ASSERT(CS2300_RATIO_3, data, ((mult << 4) & 0xFF));

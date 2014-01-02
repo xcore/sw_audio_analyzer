@@ -7,10 +7,10 @@
 #include "app_config.h"
 
 /* Core that Audio Slice is connected to */
-#define AUDIO_IO_CORE 		            1
+#define AUDIO_IO_CORE                   1
 
 /* Audio sample frequency (Hz) */
-#define SAMP_FREQ			            48000
+#define SAMP_FREQ                       48000
 
 /**************/
 /* Audio clocking defines */
