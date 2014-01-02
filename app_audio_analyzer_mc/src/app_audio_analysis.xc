@@ -80,7 +80,7 @@ int main(){
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
   streaming chan c_i2s_data, c_dac_samples;
   par {
-	  on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0);
+    on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0);
     on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1);
     on tile[0].core[0]: analysis_scheduler(i_sched0, 2);
 
@@ -95,12 +95,12 @@ int main(){
     }
 
     on tile[1]: audio(c_i2s_data);
-	  on tile[1]: genclock();
-	  on tile[1]: {
-	    if (SIMULATOR_LOOPBACK)
-	      xscope_config_io(XSCOPE_IO_NONE);
-	    signal_gen(c_dac_samples, SAMP_FREQ, chan_conf);
-	  }
+    on tile[1]: genclock();
+    on tile[1]: {
+      if (SIMULATOR_LOOPBACK)
+        xscope_config_io(XSCOPE_IO_NONE);
+      signal_gen(c_dac_samples, SAMP_FREQ, chan_conf);
+    }
   }
   return 0;
 }
