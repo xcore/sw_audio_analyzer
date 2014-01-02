@@ -23,7 +23,6 @@ void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq,
   int sine_table[I2S_MASTER_NUM_CHANS_DAC][MAX_SINE_PERIOD];
   unsigned period[I2S_MASTER_NUM_CHANS_DAC];
 
-  // output a test 1khz wav with occasional glitch
   debug_printf("Generating sine tables\n");
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
     if (chan_conf[i].type == NO_SIGNAL)
