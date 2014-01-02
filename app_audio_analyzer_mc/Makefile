@@ -1,3 +1,4 @@
+.DEFAULT_GOAL := all
 
 # compiled for. It either refers to an XN file in the source directories
 # or a valid argument for the --target option when compiling
