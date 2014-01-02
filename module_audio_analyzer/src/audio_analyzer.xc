@@ -5,6 +5,7 @@
 #include "xscope.h"
 #include "stdlib.h"
 #include "hann.h"
+#include "xs1.h"
 
 #define DUMP_FIRST_ANALYSIS 0
 
@@ -26,8 +27,29 @@ static unsigned fastlog2(unsigned long long v)
   return 64-z;
 }
 
+static inline int hmul(int a, int b) {
+    int h;
+    unsigned l;
+    {h,l} = macs(a, b, 0, 0);
+    return h << 1 | l >> 31;
+}
 
-static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
+static void hanning_window(int output[], int data0[], int data1[],
+                           int N, const int sine[]) {
+    for(int i = 0; i < (N>>2); i++) {
+        int s = sine[i]>>1;
+        output[1*(N>>2)-i] = hmul(data0[1*(N>>2)-i], 0x3fffffff-s);
+        output[1*(N>>2)+i] = hmul(data0[1*(N>>2)+i], 0x3fffffff+s);
+        output[3*(N>>2)-i] = hmul(data1[1*(N>>2)-i], 0x3fffffff+s);
+        output[3*(N>>2)+i] = hmul(data1[1*(N>>2)+i], 0x3fffffff-s);
+    }
+    output[0] = 0;
+    output[N>>1] = hmul(data1[0], 0x7ffffffe);
+}
+
+static void do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
+                            int cur[AUDIO_ANALYZER_FFT_SIZE/2],
+                            unsigned chan_id,
                             unsigned sample_rate, int &reported_freq,
                             int &reported_glitch, int &peak_freq)
 {
@@ -36,14 +58,17 @@ static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
   memset(im, 0, sizeof(im));
 
   if (DUMP_FIRST_ANALYSIS && chan_id == 0) {
-    for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE; i++) {
-      debug_printf("%d,", sig[i]);
+    for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
+      debug_printf("%d,", prev[i]);
+    }
+    for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
+      debug_printf("%d,", cur[i]);
     }
     debug_printf("\n");
   }
 
   // FFT
-  windowHann(wsig, sig, 0, AUDIO_ANALYZER_FFT_SIZE, FFT_SINE(AUDIO_ANALYZER_FFT_SIZE));
+  hanning_window(wsig, prev, cur, AUDIO_ANALYZER_FFT_SIZE, FFT_SINE(AUDIO_ANALYZER_FFT_SIZE));
   fftTwiddle(wsig, im, AUDIO_ANALYZER_FFT_SIZE);
   fftForward(wsig, im, AUDIO_ANALYZER_FFT_SIZE, FFT_SINE(AUDIO_ANALYZER_FFT_SIZE));
 
@@ -100,8 +125,11 @@ static void do_fft_analysis(int sig[AUDIO_ANALYZER_FFT_SIZE], unsigned chan_id,
       if (!reported_glitch) {
         debug_printf("ERROR: Channel %u: glitch detected (index %u, magnitude %d)\n", chan_id, i, mag_i);
         if (chan_id == 1 && 0) {
-          for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE; i++) {
-            debug_printf("%d,", sig[i]);
+          for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
+            debug_printf("%d,", prev[i]);
+          }
+          for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
+            debug_printf("%d,", cur[i]);
           }
           debug_printf("\n");
         }
@@ -119,10 +147,10 @@ void audio_analyzer(server interface audio_analysis_if i_client,
                     unsigned sample_rate, unsigned chan_id)
 {
   int initial_buffer[AUDIO_ANALYZER_FFT_SIZE/2];
-  int sig[AUDIO_ANALYZER_FFT_SIZE];
+  int prev[AUDIO_ANALYZER_FFT_SIZE/2];
   int * movable pbuf = initial_buffer;
   debug_printf("Starting audio analyzer task\n");
-  memset(sig, 0, sizeof(sig));
+  memset(prev, 0, sizeof(prev));
   int signal_started = 0, sig_detect_count = 0;
   int reported_freq = 0, reported_glitch = 0;
   int lost_signal = 0, reported_interrupt = 0;
@@ -141,10 +169,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
       break;
     case scheduler.do_analysis():
       int (& restrict buf)[AUDIO_ANALYZER_FFT_SIZE/2] = pbuf;
-      // The analyzer gets given half a window worth of samples at a time.
-      // We then shift the samples up from the previous window to get the a full sliding window
-      memmove(sig, &sig[AUDIO_ANALYZER_FFT_SIZE/2], AUDIO_ANALYZER_FFT_SIZE/2 * sizeof(int));
-      memcpy(&sig[AUDIO_ANALYZER_FFT_SIZE/2], buf, AUDIO_ANALYZER_FFT_SIZE/2 * sizeof(int));
+
       unsigned max_amp = 0;
       for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
         unsigned amp = buf[i] > 0 ? buf[i] : -buf[i];
@@ -179,8 +204,10 @@ void audio_analyzer(server interface audio_analysis_if i_client,
         }
       }
       else {
-        do_fft_analysis(sig, chan_id, sample_rate, reported_freq, reported_glitch, peak_freq);
+        do_fft_analysis(prev, buf, chan_id, sample_rate, reported_freq, reported_glitch, peak_freq);
       }
+      // The analyzer gets given half a window worth of samples at a time.
+      memcpy(prev, buf, AUDIO_ANALYZER_FFT_SIZE/2 * sizeof(int));
       break;
     }
   }
