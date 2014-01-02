@@ -19,12 +19,9 @@
 
 #define PORT_DAC_0              XS1_PORT_1M
 #define PORT_DAC_1              XS1_PORT_1F
-#define PORT_DAC_2              XS1_PORT_1H
-#define PORT_DAC_3              XS1_PORT_1N
 
 #define PORT_ADC_0              XS1_PORT_1G
 #define PORT_ADC_1              XS1_PORT_1A
-#define PORT_ADC_2              XS1_PORT_1B
 
 #define PORT_CLK_MAS            XS1_PORT_1L
 
