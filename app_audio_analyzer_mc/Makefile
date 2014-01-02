@@ -1,4 +1,4 @@
-# The TARGET variable determines what target system the application is
+
 # compiled for. It either refers to an XN file in the source directories
 # or a valid argument for the --target option when compiling
 TARGET = xr-usb-audio-2.0-mc
@@ -31,7 +31,7 @@ INCLUDE_ONLY_IN_TestDevice2 = src/config_TestDevice2
 VERBOSE = 0
 
 test:
-	axe --loopback tile[1]:XS1_PORT_1J tile[1]:XS1_PORT_1L --loopback tile[1]:XS1_PORT_1M tile[1]:XS1_PORT_1G --loopback tile[1]:XS1_PORT_1F tile[1]:XS1_PORT_1A --loopback tile[1]:XS1_PORT_1H tile[1]:XS1_PORT_1B bin/SimulatorLoopback/app_audio_analyzer_SimulatorLoopback.xe
+	axe --loopback tile[1]:XS1_PORT_1J tile[1]:XS1_PORT_1L --loopback tile[1]:XS1_PORT_1M tile[1]:XS1_PORT_1G --loopback tile[1]:XS1_PORT_1F tile[1]:XS1_PORT_1A --loopback tile[1]:XS1_PORT_1H tile[1]:XS1_PORT_1B bin/SimulatorLoopback/app_audio_analyzer_mc_SimulatorLoopback.xe
 
 
 #=============================================================================
