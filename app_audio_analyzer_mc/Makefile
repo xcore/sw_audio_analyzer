@@ -10,7 +10,7 @@ TARGET = xr-usb-audio-2.0-mc
 APP_NAME = 
 
 # The USED_MODULES variable lists other module used by the application.
-USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master  module_logging module_xassert
+USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master module_spdif_rx  module_logging module_xassert
 
 # The flags passed to xcc when building the application
 # You can also set the following to override flags for a particular language:

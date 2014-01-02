@@ -39,4 +39,6 @@ void i2s_tap(streaming chanend c_i2s,
              client interface audio_analysis_if analyzer[n],
              unsigned n);
 
+void analyze_ramp(streaming chanend c_dig_in, int chan_id);
+
 #endif /* AUDIO_ANALYZER_H_ */

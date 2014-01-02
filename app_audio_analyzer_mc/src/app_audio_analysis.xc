@@ -9,6 +9,7 @@
 #include "debug_print.h"
 #include "xassert.h"
 #include "signal_gen.h"
+#include "SpdifReceive.h"
 
 #ifndef SIMULATOR_LOOPBACK
 #define SIMULATOR_LOOPBACK 0
@@ -47,6 +48,8 @@ on tile[1] : r_i2s i2s_resources =
 clock dummy_clk = on tile[1]: XS1_CLKBLK_3;
 out port p_dummy_clk = on tile[1]: XS1_PORT_1J;
 
+in buffered port:4 p_spdif_in = on tile[0]: XS1_PORT_1K;
+clock clk_spdif = on tile[0]: XS1_CLKBLK_1;
 
 static void audio(streaming chanend c_i2s_data) {
   // First make sure the i2s client is ready
@@ -79,6 +82,7 @@ int main(){
   interface audio_analysis_if i_analysis[4];
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
   streaming chan c_i2s_data, c_dac_samples;
+  streaming chan c_dig_in;
   par {
     on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0);
     on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1);
@@ -94,6 +98,8 @@ int main(){
       i2s_tap(c_i2s_data, c_dac_samples, i_analysis, I2S_MASTER_NUM_CHANS_DAC);
     }
 
+    on tile[0]: SpdifReceive(p_spdif_in, c_dig_in, 4, clk_spdif);
+
     on tile[1]: audio(c_i2s_data);
     on tile[1]: genclock();
     on tile[1]: {
@@ -101,6 +107,7 @@ int main(){
         xscope_config_io(XSCOPE_IO_NONE);
       signal_gen(c_dac_samples, SAMP_FREQ, chan_conf);
     }
+    on tile[1]: analyze_ramp(c_dig_in, 4);
   }
   return 0;
 }
