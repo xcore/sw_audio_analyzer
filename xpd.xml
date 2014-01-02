@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<xpd>
+    <components></components>
+    <dependency repo = "sc_i2c">
+        <githash>d266213a4d5c4956f3d5980ba42611e24d129a39</githash>
+        <uri>https://github.com/xcore/sc_i2c.git</uri>
+    </dependency>
+    <dependency repo = "sc_util">
+        <githash>eb2fab197d49d35b878dd7bd0cc0196f6bbeff3f</githash>
+        <uri>https://github.com/xcore/sc_util.git</uri>
+    </dependency>
+    <dependency repo = "sc_dsp_transforms">
+        <githash>365c364147616311277bfe0544eaf432bf6315d3</githash>
+        <uri>git://github.com/xcore/sc_dsp_transforms</uri>
+    </dependency>
+    <dependency repo = "sc_i2s">
+        <githash>d2195e9665b7e731f8e9ce306836151b6cad4cf2</githash>
+        <uri>git://github.com/xcore/sc_i2s</uri>
+    </dependency>
+    <description>Audio signal generator and checker</description>
+    <location>git@github.com:pthedinger/sw_audio_analyzer.git</location>
+    <name>sw_audio_analyzer</name>
+    <maintainer>davelxmos</maintainer>
+    <partnumber>XM-004643-DH</partnumber>
+    <subpartnumber>XM-004644-SM</subpartnumber>
+    <vendor>XMOS</vendor>
+    <version_defines></version_defines>
+    <xcore_repo>git://github.com/xcore/sw_audio_analyzer.git</xcore_repo>
+    <xpd_version>1.0</xpd_version>
+</xpd>
