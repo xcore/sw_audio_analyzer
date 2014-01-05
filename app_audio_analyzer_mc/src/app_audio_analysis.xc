@@ -78,18 +78,30 @@ static void audio(streaming chanend c_i2s_data) {
 
 chan_conf_t chan_conf[I2S_MASTER_NUM_CHANS_DAC] = CHAN_CONFIG;
 
+#ifndef BASE_CHAN_ID
+#define BASE_CHAN_ID 0
+#endif
+
+#ifndef BASE_DIG_CHAN_ID
+#define BASE_DIG_CHAN_ID (BASE_CHAN_ID + 4)
+#endif
+
 int main(){
   interface audio_analysis_if i_analysis[4];
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
   streaming chan c_i2s_data, c_dac_samples;
   streaming chan c_dig_in;
   par {
-    on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0);
-    on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1);
+    on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ,
+                                       BASE_CHAN_ID + 0);
+    on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ,
+                                       BASE_CHAN_ID + 1);
     on tile[0].core[0]: analysis_scheduler(i_sched0, 2);
 
-    on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2);
-    on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3);
+    on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ,
+                                       BASE_CHAN_ID + 2);
+    on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ,
+                                       BASE_CHAN_ID + 3);
     on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
 
     on tile[0]: {
@@ -107,7 +119,7 @@ int main(){
         xscope_config_io(XSCOPE_IO_NONE);
       signal_gen(c_dac_samples, SAMP_FREQ, chan_conf);
     }
-    on tile[1]: analyze_ramp(c_dig_in, 4);
+    on tile[1]: analyze_ramp(c_dig_in, BASE_DIG_CHAN_ID);
   }
   return 0;
 }
