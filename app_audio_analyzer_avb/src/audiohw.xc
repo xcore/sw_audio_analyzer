@@ -84,6 +84,8 @@ void AudioHwInit(void)
   // The PLL takes a 24MHz crystal input
   audio_clock_CS2100CP_init(i2cPorts, MCLK_FREQ/300);
 
+  delay_seconds(1);
+
   // Bring codec out of reset
   p_codec_reset <: 0xF;
 
