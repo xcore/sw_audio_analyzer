@@ -1,0 +1,4 @@
+<xSCOPEconfig enabled="true" ioMode="basic">
+  <Probe module="Audio Analyzer" name="Chan 0 ADC Data" enabled="false"/>
+  <Probe module="Audio Analyzer" name="Glitch Data" enabled="true"/>
+</xSCOPEconfig>

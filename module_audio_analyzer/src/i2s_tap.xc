@@ -45,7 +45,7 @@ void i2s_tap(streaming chanend c_i2s,
   int * movable p_buf = buffer;
   int * movable buf[I2S_MASTER_NUM_CHANS_ADC];
   unsigned count = 0;
-  unsigned ignore_count = 20000;
+  unsigned ignore_count = AUDIO_SETTLE_IGNORE_COUNT;
   debug_printf("Starting I2S sample tap\n");
   split_movable_array(move(p_buf), buf, I2S_MASTER_NUM_CHANS_ADC, AUDIO_ANALYZER_FFT_SIZE/2);
   while (1) {
@@ -53,11 +53,11 @@ void i2s_tap(streaming chanend c_i2s,
       case c_i2s :> unsigned first_sample:
         xscope_int(AUDIO_ANALYZER_CHAN_0_ADC_DATA, first_sample);
 
-        buf[0][count] = first_sample << 9;
+        buf[0][count] = first_sample;
         for (int i = 1; i < I2S_MASTER_NUM_CHANS_ADC; i++) {
           unsigned sample;
           c_i2s :> sample;
-          buf[i][count] = sample << 9;
+          buf[i][count] = sample;
         }
 
         for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
