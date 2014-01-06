@@ -17,9 +17,9 @@ enum ramp_analyzer_state {
 #define INITIAL_IGNORE_COUNT 10000
 
 [[distributable]]
-static void analyze_ramp_aux(server interface analyze_ramp_if i, int chan_id)
+static void analyze_ramp_aux(server interface analyze_ramp_if i, unsigned chan_id)
 {
-  debug_printf("Channel %d: Started ramp checker\n", chan_id);
+  debug_printf("Channel %u: Started ramp checker\n", chan_id);
   enum ramp_analyzer_state state = INITIALIZING;
   int prev = 0;
   int step = 0;
@@ -37,20 +37,20 @@ static void analyze_ramp_aux(server interface analyze_ramp_if i, int chan_id)
         break;
       case WAITING_FOR_SIGNAL:
         if (sample != 0) {
-          debug_printf("Channel %d: Signal detected (initial value %d)\n",
+          debug_printf("Channel %u: Signal detected (initial value %d)\n",
                        chan_id, sample);
           state = DETECTING;
         }
         break;
       case DETECTING:
         step = ((sample << 8) - (prev << 8)) >> 8;
-        debug_printf("Channel %d: step = %d\n", chan_id, step);
+        debug_printf("Channel %u: step = %d\n", chan_id, step);
         state = CHECKING;
         break;
       case CHECKING:
         int diff = ((sample << 8) - (prev << 8)) >> 8;
         if (diff != step) {
-          debug_printf("Channel %d: discontinuity"
+          debug_printf("Channel %u: discontinuity"
                        " (samples %d, %d do not differ by %d)\n",
                        chan_id, prev, sample, step);
           state = INITIALIZING;
@@ -76,7 +76,7 @@ static void split_signal(streaming chanend c_dig_in,
     i[lr].analyze_sample(sample);
   }
 }
-void analyze_ramp(streaming chanend c_dig_in, int base_chan_id) {
+void analyze_ramp(streaming chanend c_dig_in, unsigned base_chan_id) {
   interface analyze_ramp_if i[2];
   par {
     split_signal(c_dig_in, i);
