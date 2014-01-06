@@ -28,51 +28,55 @@ const char *g_prompt = "";
 /* Interface on which the glitch occurred */
 int g_interface = 0;
 /* Size of the data received */
-int g_expected_count = 0;
+int g_expected_words = 0;
+
+/* File is chosen on header reception */
+FILE *g_file_handle = NULL;
 
 void hook_data_received(int xscope_probe, void *data, int data_len)
 {
-  char filename[MAX_FILENAME_LEN];
   int i = 0;
   int *int_data = (int*)(&data[0]);
   FILE *f = NULL;
 
-  if (g_expected_count == 0) {
+  if (g_expected_words == 0) {
+    char filename[MAX_FILENAME_LEN];
+
     if (data_len != 8)
       print_and_exit("ERROR: Received %d bytes when expecting 8 with the length\n", data_len);
-    g_expected_count = int_data[0] >> 8;
+    g_expected_words = int_data[0] >> 8;
     g_interface = int_data[0] & 0xff;
 
     printf("Received glitch on interface %d\n", g_interface);
 
-  } else {
-    if (data_len != g_expected_count)
-      print_and_exit("ERROR: Received %d bytes when expecting %d\n", data_len, g_expected_count);
-
-    printf("Received glitch data\n");
-    
     /* Create a unique glitch filename */
     do {
       sprintf(filename, "glitch_%d_%d.csv", g_interface, i);
       i++;
     } while (access(filename, F_OK) != -1);
 
-    f = fopen(filename, "w");
-    // In the case of an error still print the data to the screen
-    if (f == NULL)
-      f = stdout;
-
-    for (i = 0; i < g_expected_count/4; i++) {
-      fprintf(f, "%d, ", int_data[i]);
-      if (i && ((i % 8) == 0))
-        fprintf(f, "\n");
-    }
-
-    if (f == NULL)
+    g_file_handle = fopen(filename, "wa");
+    if (g_file_handle == NULL)
       print_and_exit("ERROR: Failed to open file to write glitch '%s'\n", filename);
 
-    fclose(f);
-    g_expected_count = 0;
+  } else {
+    int data_words = data_len/4;
+    g_expected_words -= data_words;
+    if (g_expected_words < 0)
+      print_and_exit("ERROR: expected words gone negative\n");
+
+    for (i = 0; i < data_words; i++) {
+      fprintf(g_file_handle, "%d, ", int_data[i]);
+      if (i && ((i % 8) == 0))
+        fprintf(g_file_handle, "\n");
+      fflush(g_file_handle);
+    }
+
+    if (g_expected_words == 0) {
+      printf("Received glitch data\n");
+      fclose(g_file_handle);
+      g_file_handle = NULL;
+    }
   }
 }
 

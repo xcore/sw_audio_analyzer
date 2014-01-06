@@ -6,22 +6,51 @@
 #include "xscope_handler.h"
 #include "host_xscope.h"
 
+#define NUM_BLOCKS 32
+#define BLOCK_SIZE (AUDIO_ANALYZER_FFT_SIZE / NUM_BLOCKS)
+
+#define ONE_MICROSECOND 100
+#define BLOCK_DELAY (50 * ONE_MICROSECOND)
+
 void xscope_handler(chanend c_host_data,
     client interface channel_config_if i_chan_config,
     server interface error_reporting_if i_error_reporting[n], unsigned n)
 {
   xscope_connect_data_from_host(c_host_data);
 
+  timer t;
+  unsigned block_send_time;
+  int sending = -1;
+  int send_block = 0;
+
   int glitch_data[I2S_MASTER_NUM_CHANS_ADC][AUDIO_ANALYZER_FFT_SIZE];
   int glitch_index[I2S_MASTER_NUM_CHANS_ADC];
   int glitch_magnitude[I2S_MASTER_NUM_CHANS_ADC];
   int glitch_data_valid[I2S_MASTER_NUM_CHANS_ADC];
+  int glitch_data_needs_send[I2S_MASTER_NUM_CHANS_ADC];
   memset(glitch_data_valid, 0, sizeof(glitch_data_valid));
+  memset(glitch_data_needs_send, 0, sizeof(glitch_data_needs_send));
 
   while (1) {
     unsigned int buffer[256/4]; // The maximum read size is 256 bytes
     unsigned char *char_ptr = (unsigned char *)buffer;
     int bytes_read = 0;
+
+    if (sending == -1) {
+      for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++) {
+        if (glitch_data_needs_send[i]) {
+          // Start sending this glitch data
+          t :> block_send_time;
+          sending = i;
+          send_block = 0;
+          glitch_data_needs_send[i] = 0;
+
+          // Send the total number of data words
+          xscope_int(AUDIO_ANALYZER_GLITCH_DATA, (sizeof(glitch_data[i])/4) << 8 | i);
+          break;
+        }
+      }
+    }
 
     select {
       case xscope_data_from_host(c_host_data, (unsigned char *)buffer, bytes_read):
@@ -64,6 +93,7 @@ void xscope_handler(chanend c_host_data,
       case i_error_reporting[int i].glitch_detected(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
                                                   int cur[AUDIO_ANALYZER_FFT_SIZE/2],
                                                   int index, int magnitude) : 
+        assert(!glitch_data_valid[i] && msg("data_valid"));
         memcpy(glitch_data[i], prev, sizeof(prev));
         memcpy(&glitch_data[i][AUDIO_ANALYZER_FFT_SIZE/2], cur, sizeof(cur));
         glitch_index[i] = index;
@@ -72,21 +102,31 @@ void xscope_handler(chanend c_host_data,
         break;
 
       case i_error_reporting[int i].report_glitch() :
-        assert(glitch_data_valid[i]);
+        assert(glitch_data_valid[i] && msg("!data_valid report"));
 
         debug_printf("ERROR: Channel %u: glitch detected (index %u, magnitude %d)\n",
             i, glitch_index[i], glitch_magnitude[i]);
-
-        xscope_int(AUDIO_ANALYZER_GLITCH_DATA, sizeof(glitch_data[i]) << 8 | i);
-        xscope_bytes(AUDIO_ANALYZER_GLITCH_DATA, sizeof(glitch_data[i]),
-            (unsigned char *)glitch_data[i]);
-        glitch_data_valid[i] = 0;
+        glitch_data_needs_send[i] = 1;
         break;
 
       case i_error_reporting[int i].cancel_glitch() : 
-        assert(glitch_data_valid[i]);
+        assert(glitch_data_valid[i] && msg("!data_valid cancel"));
         glitch_data_valid[i] = 0;
         break;
+
+      case (sending != -1) => t when timerafter(block_send_time) :> void : {
+          // Send the first block
+        unsigned char *data = (unsigned char *)(&glitch_data[sending][send_block * BLOCK_SIZE]);
+        xscope_bytes(AUDIO_ANALYZER_GLITCH_DATA, BLOCK_SIZE * sizeof(int), data);
+        block_send_time += BLOCK_DELAY;
+        send_block += 1;
+
+        if (send_block == NUM_BLOCKS) {
+          glitch_data_valid[sending] = 0;
+          sending = -1;
+        }
+        break;
+      }
     }
   }
 }
