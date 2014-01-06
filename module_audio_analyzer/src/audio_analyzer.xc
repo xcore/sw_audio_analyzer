@@ -7,6 +7,18 @@
 #include "hann.h"
 #include "xs1.h"
 
+#ifdef __audio_analyzer_conf_h_exists__
+#include "audio_analyzer_conf.h"
+#endif
+
+#ifndef AUDIO_SIGNAL_DETECT_THRESHOLD
+#define AUDIO_SIGNAL_DETECT_THRESHOLD 90000000
+#endif
+
+#ifndef AUDIO_NOISE_FLOOR
+#define AUDIO_NOISE_FLOOR 25
+#endif
+
 #define DUMP_FIRST_ANALYSIS 0
 
 #define SIGNAL_DETECT_COUNT_THRESHOLD   15

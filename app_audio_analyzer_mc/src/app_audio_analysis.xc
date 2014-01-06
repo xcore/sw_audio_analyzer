@@ -10,6 +10,7 @@
 #include "xassert.h"
 #include "signal_gen.h"
 #include "SpdifReceive.h"
+#include "xscope_handler.h"
 
 #ifndef SIMULATOR_LOOPBACK
 #define SIMULATOR_LOOPBACK 0
@@ -81,15 +82,32 @@ chan_conf_t chan_conf[I2S_MASTER_NUM_CHANS_DAC] = CHAN_CONFIG;
 int main(){
   interface audio_analysis_if i_analysis[4];
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
+  interface channel_config_if i_chan_config;
+  /* Work-around for BUG 15107 - don't use array */
+  interface error_reporting_if i_error_reporting_0, i_error_reporting_1,
+                               i_error_reporting_2, i_error_reporting_3;
   streaming chan c_i2s_data, c_dac_samples;
   streaming chan c_dig_in;
+  chan c_host_data;
   par {
-    on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0);
-    on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1);
+    on tile[1]:
+      unsafe {
+        int a[4];
+        server interface error_reporting_if (* unsafe p)[4] =
+          (server interface error_reporting_if (* unsafe)[4]) &a;
+        *((int * unsafe) (&(*p)[0])) = *((int * unsafe) &i_error_reporting_0);
+        *((int * unsafe) (&(*p)[1])) = *((int * unsafe) &i_error_reporting_1);
+        *((int * unsafe) (&(*p)[2])) = *((int * unsafe) &i_error_reporting_2);
+        *((int * unsafe) (&(*p)[3])) = *((int * unsafe) &i_error_reporting_3);
+        xscope_handler(c_host_data, i_chan_config, *p, 4);
+      }
+
+    on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0, i_error_reporting_0);
+    on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1, i_error_reporting_1);
     on tile[0].core[0]: analysis_scheduler(i_sched0, 2);
 
-    on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2);
-    on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3);
+    on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2, i_error_reporting_2);
+    on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3, i_error_reporting_3);
     on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
 
     on tile[0]: {
@@ -105,7 +123,7 @@ int main(){
     on tile[1]: {
       if (SIMULATOR_LOOPBACK)
         xscope_config_io(XSCOPE_IO_NONE);
-      signal_gen(c_dac_samples, SAMP_FREQ, chan_conf);
+      signal_gen(c_dac_samples, SAMP_FREQ, chan_conf, i_chan_config);
     }
     on tile[1]: analyze_ramp(c_dig_in, 4);
   }

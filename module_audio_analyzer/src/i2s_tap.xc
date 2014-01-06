@@ -3,6 +3,14 @@
 #include "xscope.h"
 #include "debug_print.h"
 
+#ifdef __audio_analyzer_conf_h_exists__
+#include "audio_analyzer_conf.h"
+#endif
+
+#ifndef AUDIO_SETTLE_IGNORE_COUNT
+#define AUDIO_SETTLE_IGNORE_COUNT 20000
+#endif
+
 // This function splits a big array into a set of segments
 static void split_movable_array(int * movable a, int * movable b[n],
                                 unsigned n, unsigned m)

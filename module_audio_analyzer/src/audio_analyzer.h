@@ -1,10 +1,6 @@
 #ifndef AUDIO_ANALYZER_H_
 #define AUDIO_ANALYZER_H_
 
-#ifdef __audio_analyzer_conf_h_exists__
-#include "audio_analyzer_conf.h"
-#endif
-
 #ifndef AUDIO_ANALYZER_FFT_SIZE
 #define AUDIO_ANALYZER_FFT_SIZE 1024
 #endif
