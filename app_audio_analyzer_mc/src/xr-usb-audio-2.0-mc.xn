@@ -28,7 +28,7 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
     </Link>
     <Link Encoding="2wire" Delays="4,4" Flags="XSCOPE">
       <LinkEndpoint NodeId="0" Link="X0LA" />
-      <LinkEndpoint RoutingId="0x8000" Chanend="1" />
+      <LinkEndpoint NodeId="2" Chanend="1" />
     </Link>
   </Links>
 
@@ -101,6 +101,14 @@ xsi:schemaLocation="http://www.xmos.com http://www.xmos.com">
   </Nodes>
     </Package>
   </Packages>
+
+  <Nodes>
+    <Node Id="2" Type="device:" routingId="0x8000">
+      <Service Id="0" Proto="xscope_host_data(chanend c);">
+        <Chanend Identifier="c" end="3"/>
+      </Service>
+    </Node>
+  </Nodes>
 
   <ExternalDevices>
     <Device NodeId="0" Core="0" Class="SPIFlash" Name="bootFlash" Type="AT25DF041A">
