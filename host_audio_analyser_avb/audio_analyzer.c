@@ -33,7 +33,7 @@ int g_expected_words = 0;
 /* File is chosen on header reception */
 FILE *g_file_handle = NULL;
 
-void hook_data_received(int xscope_probe, void *data, int data_len)
+void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
 {
   int i = 0;
   int *int_data = (int*)(&data[0]);
@@ -77,6 +77,10 @@ void hook_data_received(int xscope_probe, void *data, int data_len)
       fclose(g_file_handle);
       g_file_handle = NULL;
     }
+
+    // Send an acknowledge for the data received
+    ((unsigned char *)data)[0] = HOST_ACK_DATA;
+    xscope_ep_request_upload(sockfd, 1, data);
   }
 }
 
@@ -166,8 +170,7 @@ void *console_thread(void *arg)
           to_send[1] = convert_atoi_substr(&prev);
         }
         printf("Sending %d:%d\n", to_send[0], to_send[1]);
-        if (xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send) != XSCOPE_EP_SUCCESS)
-          printf("Failed to send\n");
+        xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send);
         break;
       }
 
@@ -182,8 +185,7 @@ void *console_thread(void *arg)
           to_send[1] = convert_atoi_substr(&prev);
         }
         printf("Sending %d:%d\n", to_send[0], to_send[1]);
-        if (xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send) != XSCOPE_EP_SUCCESS)
-          printf("Failed to send\n");
+        xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send);
         break;
       }
 
@@ -197,8 +199,7 @@ void *console_thread(void *arg)
         to_send[3] = convert_atoi_substr(&ptr);
 
         printf("Sending %d:%d\n", to_send_c[0], to_send_c[1]);
-        if (xscope_ep_request_upload(sockfd, sizeof(to_send), (unsigned char *)&to_send) != XSCOPE_EP_SUCCESS != XSCOPE_EP_SUCCESS)
-          printf("Failed to send\n");
+        xscope_ep_request_upload(sockfd, sizeof(to_send), (unsigned char *)&to_send);
         break;
       }
 
@@ -238,7 +239,7 @@ int main(int argc, char *argv[])
   char *server_ip = DEFAULT_SERVER_IP;
   char *port_str = DEFAULT_PORT;
   int err = 0;
-  int sockfd = 0;
+  int sockfds[1] = {0};
   int c = 0;
 
   while ((c = getopt(argc, argv, "s:p:")) != -1) {
@@ -264,20 +265,20 @@ int main(int argc, char *argv[])
   if (err)
     usage(argv);
 
-  sockfd = initialise_common(server_ip, port_str);
+  sockfds[0] = initialise_socket(server_ip, port_str);
 
   // Now start the console
 #ifdef _WIN32
-  thread = CreateThread(NULL, 0, console_thread, &sockfd, 0, NULL);
+  thread = CreateThread(NULL, 0, console_thread, &sockfds[0], 0, NULL);
   if (thread == NULL)
     print_and_exit("ERROR: Failed to create console thread\n");
 #else
-  err = pthread_create(&tid, NULL, &console_thread, &sockfd);
+  err = pthread_create(&tid, NULL, &console_thread, &sockfds[0]);
   if (err != 0)
     print_and_exit("ERROR: Failed to create console thread\n");
 #endif
 
-  handle_socket(sockfd);
+  handle_sockets(sockfds, 1);
   return 0;
 }
 
