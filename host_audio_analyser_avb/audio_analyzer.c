@@ -36,7 +36,7 @@ FILE *g_file_handle = NULL;
 void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
 {
   int i = 0;
-  int *int_data = (int*)(&data[0]);
+  int *int_data = (int*) data;
   FILE *f = NULL;
 
   if (g_expected_words == 0) {
