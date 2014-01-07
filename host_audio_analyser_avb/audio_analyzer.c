@@ -11,12 +11,34 @@
  * Includes for thread support
  */
 #ifdef _WIN32
-  #include <winsock.h>
+#include <winsock.h>
+
+int file_exists(char *filename)
+{
+  WIN32_FIND_DATA FindFileData;
+  HANDLE handle = FindFirstFile(filename, &FindFileData);
+  if (handle != INVALID_HANDLE_VALUE) {
+    FindClose(handle);
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 #else
-  #include <pthread.h>
+
+#include <pthread.h>
+#include <unistd.h>
+
+int file_exists(char *filename)
+{
+  if (access(filename, F_OK) != -1)
+    return 1;
+  else
+    return 0;
+}
 #endif
 
-#include <unistd.h>
 
 #include "xscope_host_shared.h"
 #include "host_xscope.h"
@@ -36,7 +58,7 @@ FILE *g_file_handle = NULL;
 void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
 {
   int i = 0;
-  int *int_data = (int*)(&data[0]);
+  int *int_data = (int*)data;
   FILE *f = NULL;
 
   if (g_expected_words == 0) {
@@ -53,11 +75,12 @@ void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
     do {
       sprintf(filename, "glitch_%d_%d.csv", g_interface, i);
       i++;
-    } while (access(filename, F_OK) != -1);
+    } while (file_exists(filename));
 
-    g_file_handle = fopen(filename, "wa");
+    g_file_handle = fopen(filename, "a");
     if (g_file_handle == NULL)
       print_and_exit("ERROR: Failed to open file to write glitch '%s'\n", filename);
+
 
   } else {
     int data_words = data_len/4;
@@ -147,13 +170,15 @@ void *console_thread(void *arg)
   do {
     int i = 0;
     int c = 0;
+    const char *ptr = NULL;
+    char cmd = 0;
 
     for (i = 0; (i < LINE_LENGTH) && ((c = getchar()) != EOF) && (c != '\n'); i++)
       buffer[i] = tolower(c);
     buffer[i] = '\0';
 
-    const char *ptr = &buffer[0];
-    char cmd = get_next_char(&ptr);
+    ptr = &buffer[0];
+    cmd = get_next_char(&ptr);
     switch (cmd) {
       case 'q':
         print_and_exit("Done\n");
