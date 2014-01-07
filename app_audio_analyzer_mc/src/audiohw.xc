@@ -73,13 +73,16 @@ void AudioHwInit(void)
     unsigned char tmp[1];
     i2c_master_init(i2cPorts);
 
-    /* Clock buffers and CODEC out of reset */
-    p_aud_cfg <: 0b1000;
-
     PllInit();
 
     /* Setup PLL to output default mclk freq */
     PllMult(MCLK_FREQ/300);
+
+    delay_milliseconds(1000);
+
+    /* Clock buffers and CODEC out of reset */
+    p_aud_cfg <: 0b1000;
+
 
     /* Power Control Register (Address 02h) */
     /* 0    Power Down                           (PDN)   = 1 Enable, 0 Disable */
