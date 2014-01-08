@@ -52,6 +52,8 @@ out port p_dummy_clk = on tile[1]: XS1_PORT_1J;
 in buffered port:4 p_spdif_in = on tile[0]: XS1_PORT_1K;
 clock clk_spdif = on tile[0]: XS1_CLKBLK_1;
 
+out port p_spdif_out = on tile[1] : XS1_PORT_1K;
+
 static void audio(streaming chanend c_i2s_data) {
   // First make sure the i2s client is ready
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
@@ -133,6 +135,7 @@ int main(){
     on tile[1]: audio(c_i2s_data);
     on tile[1]: genclock();
     on tile[1]: {
+      p_spdif_out <: 0;
       if (SIMULATOR_LOOPBACK)
         xscope_config_io(XSCOPE_IO_NONE);
       signal_gen(c_dac_samples, SAMP_FREQ, chan_conf, i_chan_config);
