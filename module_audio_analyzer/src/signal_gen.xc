@@ -19,13 +19,13 @@ static unsigned gcd(unsigned u, unsigned v)
 static void enable(unsigned chan_id, chan_conf_t &chan_conf)
 {
   chan_conf.enabled = 1;
-  debug_printf("Channel %u enabled\n", chan_id);
+  debug_printf("Channel %u: enabled\n", chan_id);
 }
 
 static void disable(unsigned chan_id, chan_conf_t &chan_conf)
 {
   chan_conf.enabled = 0;
-  debug_printf("Channel %u disabled\n", chan_id);
+  debug_printf("Channel %u: disabled\n", chan_id);
 }
 
 static void generate_sine_table(unsigned chan_id, chan_conf_t chan_conf,
