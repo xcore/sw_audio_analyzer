@@ -45,6 +45,8 @@ def runTest(args):
   master.sendLine(controller_id, "d a")
   yield master.expect(Expected(controller_id, "Channel 0: disabled", 15))
 
+  # There needs to be small delays to allow the audio signals to settle, otherwise
+  # spurious glitches are detected.
   delay = 0.5
   test_frequencies = [1000, 2000, 4000, 8000]
 
