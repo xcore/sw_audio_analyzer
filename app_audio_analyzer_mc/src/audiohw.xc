@@ -97,8 +97,8 @@ void AudioHwInit(void)
     /* 2:4  DAC Digital Interface Format       (DAC_DIF)    = 010 (Right justified, 24bit) */
     /* 5:7  ADC Digital Interface Format       (ADC_DIF)    = 010 (Rigth justified, 24bit) */
     //tmp[0] = 0x49;
-    tmp[0] = 0b00010010;
-    //tmp[0] = 0b00000000;
+    //tmp[0] = 0b00010010;
+    tmp[0] = 0b00000000;
 
     i2c_master_write_reg(COD_DEV_ADRS, 0x4, tmp, 1, i2cPorts);
 
@@ -128,8 +128,8 @@ void AudioHwInit(void)
     /*                                             512/256/128:                    010 */
     /* 7                                           Reserved                            */
 
-    //tmp[0] = 0b11111000;                                             /* Autodetect */
-    tmp[0] = 0b00000100;
+    tmp[0] = 0b11111000;                                             /* Autodetect */
+    //tmp[0] = 0b00000100;
 
     i2c_master_write_reg(COD_DEV_ADRS, 0x3, tmp, 1, i2cPorts);
     //AudioHwConfig(SAMP_FREQ, MCLK_FREQ);
