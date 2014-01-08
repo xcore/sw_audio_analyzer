@@ -9,48 +9,37 @@
 #include "debug_print.h"
 #include "xassert.h"
 #include "signal_gen.h"
-#include "SpdifReceive.h"
 #include "xscope_handler.h"
 
 #ifndef SIMULATOR_LOOPBACK
 #define SIMULATOR_LOOPBACK 0
 #endif
 
-#define PORT_CLK_BIT            XS1_PORT_1I         /* Bit clock */
-#define PORT_CLK_LR             XS1_PORT_1E         /* LR clock */
+#define PORT_CLK_MAS            XS1_PORT_1E         /* Master clock */
+#define PORT_CLK_BIT            XS1_PORT_1K         /* Bit clock */
+#define PORT_CLK_LR             XS1_PORT_1I         /* LR clock */
 
-#define PORT_DAC_0              XS1_PORT_1M
-#define PORT_DAC_1              XS1_PORT_1F
+#define PORT_DAC_0              XS1_PORT_1O
+#define PORT_DAC_1              XS1_PORT_1H
 
-#define PORT_ADC_0              XS1_PORT_1G
-#define PORT_ADC_1              XS1_PORT_1A
+#define PORT_ADC_0              XS1_PORT_1J
+#define PORT_ADC_1              XS1_PORT_1L
 
-#define PORT_CLK_MAS            XS1_PORT_1L
 
-on tile[1] : r_i2s i2s_resources =
+on tile[0] : r_i2s i2s_resources =
 {
-  XS1_CLKBLK_1,
-  XS1_CLKBLK_2,
+  XS1_CLKBLK_3,
+  XS1_CLKBLK_4,
   PORT_CLK_MAS,
   PORT_CLK_BIT,
   PORT_CLK_LR,
-#if I2S_MASTER_NUM_CHANS_ADC == 2
-  {PORT_ADC_0},
-#else
-  {PORT_ADC_0, PORT_ADC_1},
-#endif
-#if I2S_MASTER_NUM_CHANS_DAC == 2
-  {PORT_DAC_0},
-#else
-  {PORT_DAC_0, PORT_DAC_1},
-#endif
+  { PORT_ADC_0, PORT_ADC_1 },
+  { PORT_DAC_0, PORT_DAC_1 }
 };
 
-clock dummy_clk = on tile[1]: XS1_CLKBLK_3;
-out port p_dummy_clk = on tile[1]: XS1_PORT_1J;
+clock dummy_clk = on tile[0]: XS1_CLKBLK_2;
+out port p_dummy_clk = on tile[0]: XS1_PORT_1A;
 
-in buffered port:4 p_spdif_in = on tile[0]: XS1_PORT_1K;
-clock clk_spdif = on tile[0]: XS1_CLKBLK_1;
 
 static void audio(streaming chanend c_i2s_data) {
   // First make sure the i2s client is ready
@@ -87,10 +76,11 @@ int main(){
   interface error_reporting_if i_error_reporting_0, i_error_reporting_1,
                                i_error_reporting_2, i_error_reporting_3;
   streaming chan c_i2s_data, c_dac_samples;
-  streaming chan c_dig_in;
   chan c_host_data;
   par {
-    on tile[1]:
+    xscope_host_data(c_host_data);
+
+    on tile[0]:
       unsafe {
         int a[4];
         server interface error_reporting_if (* unsafe p)[4] =
@@ -102,30 +92,27 @@ int main(){
         xscope_handler(c_host_data, i_chan_config, *p, 4);
       }
 
-    on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0, i_error_reporting_0);
-    on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1, i_error_reporting_1);
-    on tile[0].core[0]: analysis_scheduler(i_sched0, 2);
+    on tile[1].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0, i_error_reporting_0);
+    on tile[1].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1, i_error_reporting_1);
+    on tile[1].core[0]: analysis_scheduler(i_sched0, 2);
 
-    on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2, i_error_reporting_2);
-    on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3, i_error_reporting_3);
-    on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
+    on tile[1].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2, i_error_reporting_2);
+    on tile[1].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3, i_error_reporting_3);
+    on tile[1].core[1]: analysis_scheduler(i_sched1, 2);
 
-    on tile[0]: {
+    on tile[1]: {
       if (SIMULATOR_LOOPBACK)
         xscope_config_io(XSCOPE_IO_NONE);
       i2s_tap(c_i2s_data, c_dac_samples, i_analysis, I2S_MASTER_NUM_CHANS_DAC);
     }
 
-    on tile[0]: SpdifReceive(p_spdif_in, c_dig_in, 4, clk_spdif);
-
-    on tile[1]: audio(c_i2s_data);
-    on tile[1]: genclock();
-    on tile[1]: {
+    on tile[AUDIO_IO_TILE]: audio(c_i2s_data);
+    on tile[AUDIO_IO_TILE]: genclock();
+    on tile[AUDIO_IO_TILE]: {
       if (SIMULATOR_LOOPBACK)
         xscope_config_io(XSCOPE_IO_NONE);
       signal_gen(c_dac_samples, SAMP_FREQ, chan_conf, i_chan_config);
     }
-    on tile[1]: analyze_ramp(c_dig_in, 4);
   }
   return 0;
 }
