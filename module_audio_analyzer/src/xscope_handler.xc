@@ -96,15 +96,6 @@ void xscope_handler(chanend c_host_data,
             i_chan_config.disable_channel(chan_index);
             break;
           }
-          case HOST_SIGNAL_DUMP_ONE : {
-            assert(bytes_read > 1);
-            int if_num = char_ptr[1];
-            if (if_num < n)
-              i_control[if_num].request_signal_dump();
-            else
-              debug_printf("Interface %d is invalid\n", if_num);
-            break;
-          }
           case HOST_CONFIGURE_ONE : {
             // There must be enough data for the word-aligned data
             assert(bytes_read == 16);
@@ -115,6 +106,20 @@ void xscope_handler(chanend c_host_data,
             chan_config.do_glitch = buffer[2];
             chan_config.glitch_period = buffer[3];
             i_chan_config.configure_channel(chan_index, chan_config);
+            break;
+          }
+          case HOST_SIGNAL_DUMP_ONE : {
+            assert(bytes_read > 1);
+            int if_num = char_ptr[1];
+            if (if_num < n)
+              i_control[if_num].request_signal_dump();
+            else
+              debug_printf("Interface %d is invalid\n", if_num);
+            break;
+          }
+          case HOST_SET_VOLUME : {
+            assert(bytes_read > 2);
+            i_chan_config.set_volume(chan_index, char_ptr[2]);
             break;
           }
         }
