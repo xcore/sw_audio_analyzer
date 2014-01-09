@@ -19,6 +19,12 @@ interface error_reporting_if {
       int cur[AUDIO_ANALYZER_FFT_SIZE/2], int index, int magnitude);
 
   /*
+   * Dump the current signal data
+   */
+  void signal_dump(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
+      int cur[AUDIO_ANALYZER_FFT_SIZE/2]);
+
+  /*
    * Report the glitch to the host.
    */
   void report_glitch();
@@ -27,6 +33,13 @@ interface error_reporting_if {
    * Was not a glitch, but rather the end of the signal, so don't report it.
    */
   void cancel_glitch();
+};
+
+interface analysis_control_if {
+  /*
+   * Get a dump of the current signal data.
+   */
+  void request_signal_dump();
 };
 
 interface audio_analysis_if {
@@ -50,7 +63,8 @@ interface audio_analysis_scheduler_if {
 void audio_analyzer(server interface audio_analysis_if get_data,
                     server interface audio_analysis_scheduler_if i_sched,
                     unsigned sample_rate, unsigned chan_id,
-                    client interface error_reporting_if i_error_reporting);
+                    client interface error_reporting_if i_error_reporting,
+                    server interface analysis_control_if i_control);
 
 [[combinable]]
 void analysis_scheduler(client interface audio_analysis_scheduler_if i[n], unsigned n);

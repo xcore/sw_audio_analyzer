@@ -14,6 +14,7 @@
 
 void xscope_handler(chanend c_host_data,
     client interface channel_config_if i_chan_config,
+    client interface analysis_control_if i_control[n],
     server interface error_reporting_if i_error_reporting[n], unsigned n)
 {
   xscope_connect_data_from_host(c_host_data);
@@ -46,9 +47,11 @@ void xscope_handler(chanend c_host_data,
           sending = i;
           glitch_data_needs_send[i] = 0;
 
-          // Send the total number of data words
-          xscope_int(AUDIO_ANALYZER_GLITCH_DATA,
-                     (sizeof(glitch_data[i])/4) << 8 | chan_id_map[i]);
+          // Send the total number of data words, whether it is glitch data and interface
+          // in one word
+          xscope_int(AUDIO_ANALYZER_GLITCH_DATA, (sizeof(glitch_data[i])/4) << 8 |
+              ((glitch_data_valid[i] & 0x1) << 7) |
+              chan_id_map[i]);
           break;
         }
       }
@@ -93,6 +96,15 @@ void xscope_handler(chanend c_host_data,
             i_chan_config.disable_channel(chan_index);
             break;
           }
+          case HOST_SIGNAL_DUMP_ONE : {
+            assert(bytes_read > 1);
+            int if_num = char_ptr[1];
+            if (if_num < n)
+              i_control[if_num].request_signal_dump();
+            else
+              debug_printf("Interface %d is invalid\n", if_num);
+            break;
+          }
           case HOST_CONFIGURE_ONE : {
             // There must be enough data for the word-aligned data
             assert(bytes_read == 16);
@@ -122,6 +134,14 @@ void xscope_handler(chanend c_host_data,
         glitch_data_valid[i] = 1;
         break;
 
+      case i_error_reporting[int i].signal_dump(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
+                                                int cur[AUDIO_ANALYZER_FFT_SIZE/2]) :
+        memcpy(glitch_data[i], prev, sizeof(prev));
+        memcpy(&glitch_data[i][AUDIO_ANALYZER_FFT_SIZE/2], cur, sizeof(cur));
+        debug_printf("Channel %d: dump signal data\n", i);
+        glitch_data_needs_send[i] = 1;
+        break;
+
       case i_error_reporting[int i].report_glitch() :
         debug_printf("ERROR: Channel %u: glitch detected (index %u, magnitude %d)\n",
             chan_id_map[i], glitch_index[i], glitch_magnitude[i]);
@@ -129,7 +149,6 @@ void xscope_handler(chanend c_host_data,
         break;
 
       case i_error_reporting[int i].cancel_glitch() : 
-        assert(glitch_data_valid[i] && msg("!data_valid cancel"));
         glitch_data_valid[i] = 0;
         break;
 

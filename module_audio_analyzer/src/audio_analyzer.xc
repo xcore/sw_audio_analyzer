@@ -23,7 +23,7 @@
 
 #define SIGNAL_DETECT_COUNT_THRESHOLD   15
 #define PEAK_IGNORE_WINDOW              15
-#define GLITCH_TOLERANCE_RATIO_A         8
+#define GLITCH_TOLERANCE_RATIO_A        8
 #define GLITCH_TOLERANCE_RATIO_B        25
 #define LOW_FREQUENCY_IGNORE_THRESHOLD   5
 
@@ -93,7 +93,7 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
     long long im_i = im[i];
     mag_spec = re_i * re_i + im_i * im_i;
     mag[i] = fastlog2(mag_spec);
-    if (mag[i] > max_val) {
+    if (i > LOW_FREQUENCY_IGNORE_THRESHOLD && mag[i] > max_val) {
       max_val = mag[i];
       max_index = i;
     }
@@ -131,8 +131,9 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
 
     if (mag_i > tolerance) {
       glitch_detected = 1;
+      if (glitch_count == 0)
+        i_error_reporting.glitch_detected(prev, cur, i, mag_i);
       glitch_count++;
-      i_error_reporting.glitch_detected(prev, cur, i, mag_i);
 
       if (chan_id == 1 && 0) {
         for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
@@ -168,9 +169,10 @@ static void inline signal_lost(unsigned chan_id, anayzer_state_t &state,
 
 [[combinable]]
 void audio_analyzer(server interface audio_analysis_if i_client,
-                    server interface audio_analysis_scheduler_if scheduler,
+                    server interface audio_analysis_scheduler_if i_scheduler,
                     unsigned sample_rate, unsigned chan_id,
-                    client interface error_reporting_if i_error_reporting)
+                    client interface error_reporting_if i_error_reporting,
+                    server interface analysis_control_if i_control)
 {
   int initial_buffer[AUDIO_ANALYZER_FFT_SIZE/2];
   int * movable pbuf = initial_buffer;
@@ -179,6 +181,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
   int glitch_count = 0;
   int reported_freq = 0;
   int prev[AUDIO_ANALYZER_FFT_SIZE/2];
+  int signal_dump_requested = 0;
   memset(prev, 0, sizeof(prev));
 
   debug_printf("Starting audio analyzer task\n");
@@ -194,10 +197,20 @@ void audio_analyzer(server interface audio_analysis_if i_client,
       other = move(tmp);
       // This task will not analyze this buffer straight away but will
       // just notify the scheduler that it is ready to go
-      scheduler.ready();
+      i_scheduler.ready();
       break;
-    case scheduler.do_analysis():
+
+    case i_control.request_signal_dump():
+      signal_dump_requested = 1;
+      break;
+
+    case i_scheduler.do_analysis():
       int (& restrict buf)[AUDIO_ANALYZER_FFT_SIZE/2] = pbuf;
+
+      if (signal_dump_requested) {
+        i_error_reporting.signal_dump(prev, buf);
+        signal_dump_requested = 0;
+      }
 
       unsigned max_amp = 0;
       for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
