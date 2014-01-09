@@ -182,6 +182,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
   memset(prev, 0, sizeof(prev));
 
   debug_printf("Starting audio analyzer task\n");
+  i_error_reporting.set_chan_id(chan_id);
 
   while (1) {
     // Wait until the other side gives us a buffer to analyze

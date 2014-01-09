@@ -29,6 +29,10 @@ void xscope_handler(chanend c_host_data,
   int glitch_data_needs_send[I2S_MASTER_NUM_CHANS_ADC];
   memset(glitch_data_valid, 0, sizeof(glitch_data_valid));
   memset(glitch_data_needs_send, 0, sizeof(glitch_data_needs_send));
+  int chan_id_map[I2S_MASTER_NUM_CHANS_ADC];
+
+  for (int i = 0;i < I2S_MASTER_NUM_CHANS_ADC; i++)
+    chan_id_map[i] = i;
 
   while (1) {
     unsigned int buffer[256/4]; // The maximum read size is 256 bytes
@@ -43,7 +47,8 @@ void xscope_handler(chanend c_host_data,
           glitch_data_needs_send[i] = 0;
 
           // Send the total number of data words
-          xscope_int(AUDIO_ANALYZER_GLITCH_DATA, (sizeof(glitch_data[i])/4) << 8 | i);
+          xscope_int(AUDIO_ANALYZER_GLITCH_DATA,
+                     (sizeof(glitch_data[i])/4) << 8 | chan_id_map[i]);
           break;
         }
       }
@@ -55,6 +60,19 @@ void xscope_handler(chanend c_host_data,
           debug_printf("ERROR: Received '%d' bytes\n", bytes_read);
           break;
         }
+        int chan_index = -1;
+        for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++) {
+          if (chan_id_map[i] == char_ptr[1])
+            chan_index = i;
+        }
+        if (chan_index == -1 &&
+            (char_ptr[0] == HOST_ENABLE_ONE ||
+             char_ptr[0] == HOST_DISABLE_ONE ||
+             char_ptr[0] == HOST_CONFIGURE_ONE)) {
+          debug_printf("ERROR: Invalid channel id '%d'\n", char_ptr[1]);
+          break;
+        }
+
         switch (char_ptr[0]) {
           case HOST_ACK_DATA :
             data_outstanding = 0;
@@ -64,7 +82,7 @@ void xscope_handler(chanend c_host_data,
             break;
           case HOST_ENABLE_ONE : {
             assert(bytes_read > 1);
-            i_chan_config.enable_channel(char_ptr[1]);
+            i_chan_config.enable_channel(chan_index);
             break;
           }
           case HOST_DISABLE_ALL : 
@@ -72,7 +90,7 @@ void xscope_handler(chanend c_host_data,
             break;
           case HOST_DISABLE_ONE : {
             assert(bytes_read > 1);
-            i_chan_config.disable_channel(char_ptr[1]);
+            i_chan_config.disable_channel(chan_index);
             break;
           }
           case HOST_CONFIGURE_ONE : {
@@ -84,10 +102,14 @@ void xscope_handler(chanend c_host_data,
             chan_config.freq = buffer[1];
             chan_config.do_glitch = buffer[2];
             chan_config.glitch_period = buffer[3];
-            i_chan_config.configure_channel(char_ptr[1], chan_config);
+            i_chan_config.configure_channel(chan_index, chan_config);
             break;
           }
         }
+        break;
+
+      case i_error_reporting[int i].set_chan_id(int x):
+        chan_id_map[i] = x;
         break;
 
       case i_error_reporting[int i].glitch_detected(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
@@ -102,7 +124,7 @@ void xscope_handler(chanend c_host_data,
 
       case i_error_reporting[int i].report_glitch() :
         debug_printf("ERROR: Channel %u: glitch detected (index %u, magnitude %d)\n",
-            i, glitch_index[i], glitch_magnitude[i]);
+            chan_id_map[i], glitch_index[i], glitch_magnitude[i]);
         glitch_data_needs_send[i] = 1;
         break;
 

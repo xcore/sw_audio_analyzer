@@ -7,6 +7,11 @@
 
 interface error_reporting_if {
   /*
+   * Set the channel id of the interface reporting errors.
+   */
+  void set_chan_id(int id);
+
+  /*
    * A glitch has been detected, but could be due to signal ending so just
    * provide samples for now.
    */
