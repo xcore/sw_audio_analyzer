@@ -52,11 +52,25 @@ int g_interface = 0;
 /* Size of the data received */
 int g_expected_words = 0;
 
+/* The ID of the glitch probe determined from the registrations */
+int g_glitch_probe = -1;
+
 /* File is chosen on header reception */
 FILE *g_file_handle = NULL;
 
+void hook_registration_received(int sockfd, int xscope_probe, char *name)
+{
+  if (strcmp(name, "Audio Analyzer.Glitch Data") == 0) {
+    printf("Glitch Probe Registration: %d\n", xscope_probe);
+    g_glitch_probe = xscope_probe;
+  }
+}
+
 void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
 {
+  if (xscope_probe != g_glitch_probe)
+    return;
+
   int i = 0;
   int *int_data = (int*)data;
   FILE *f = NULL;
