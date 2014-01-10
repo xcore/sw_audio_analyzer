@@ -8,6 +8,9 @@ enum xscope_host_commands {
   HOST_DISABLE_ONE,
   HOST_CONFIGURE_ONE,
   HOST_ACK_DATA,
+  HOST_SIGNAL_DUMP_ONE,
+  HOST_SET_VOLUME,
+  HOST_SET_BASE,
 };
 
 #endif // __host_xscope_h__

@@ -7,10 +7,6 @@
 #include "audio_analyzer_conf.h"
 #endif
 
-#ifndef AUDIO_SETTLE_IGNORE_COUNT
-#define AUDIO_SETTLE_IGNORE_COUNT 20000
-#endif
-
 // This function splits a big array into a set of segments
 static void split_movable_array(int * movable a, int * movable b[n],
                                 unsigned n, unsigned m)
@@ -53,7 +49,6 @@ void i2s_tap(streaming chanend c_i2s,
   int * movable p_buf = buffer;
   int * movable buf[I2S_MASTER_NUM_CHANS_ADC];
   unsigned count = 0;
-  unsigned ignore_count = AUDIO_SETTLE_IGNORE_COUNT;
   debug_printf("Starting I2S sample tap\n");
   split_movable_array(move(p_buf), buf, I2S_MASTER_NUM_CHANS_ADC, AUDIO_ANALYZER_FFT_SIZE/2);
   while (1) {
@@ -69,15 +64,18 @@ void i2s_tap(streaming chanend c_i2s,
         }
 
         for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
-          int sample;
-          c_dac_samples :> sample;
+          int sample = 0;
+          // Attempt to read a signal but if there is none available then simply
+          // output 0. Assumes signal generator will be fast enough when running.
+          select {
+            case c_dac_samples :> sample:
+              break;
+            default:
+              break;
+          }
           c_i2s <: sample;
         }
 
-        if (ignore_count) {
-          ignore_count--;
-          break;
-        }
         count++;
         if (count == AUDIO_ANALYZER_FFT_SIZE/2) {
             for (int i = 0; i < n; i++)

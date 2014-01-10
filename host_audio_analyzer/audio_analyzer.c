@@ -77,23 +77,27 @@ void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
 
   if (g_expected_words == 0) {
     char filename[MAX_FILENAME_LEN];
+    int is_glitch = 0;
+    char *basename = "";
 
     if (data_len != 8)
       print_and_exit("ERROR: Received %d bytes when expecting 8 with the length\n", data_len);
     g_expected_words = int_data[0] >> 8;
-    g_interface = int_data[0] & 0xff;
+    g_interface = int_data[0] & 0x7f;
+    is_glitch = (int_data[0] >> 7) & 0x1;
+    basename = is_glitch ? "glitch" : "signal";
 
-    printf("Received glitch on interface %d\n", g_interface);
+    printf("Host: received %s on interface %d\n", basename, g_interface);
 
     /* Create a unique glitch filename */
     do {
-      sprintf(filename, "glitch_%d_%d.csv", g_interface, i);
+      sprintf(filename, "%s_%d_%d.csv", basename, g_interface, i);
       i++;
     } while (file_exists(filename));
 
     g_file_handle = fopen(filename, "a");
     if (g_file_handle == NULL)
-      print_and_exit("ERROR: Failed to open file to write glitch '%s'\n", filename);
+      print_and_exit("ERROR: Failed to open file to write %s '%s'\n", basename, filename);
 
 
   } else {
@@ -110,7 +114,7 @@ void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
     }
 
     if (g_expected_words == 0) {
-      printf("Received glitch data\n");
+      printf("Host: received data\n");
       fclose(g_file_handle);
       g_file_handle = NULL;
     }
@@ -164,7 +168,10 @@ void print_console_usage()
   printf("  e <n>   : enable channel n\n");
   printf("  d a     : disable all channels\n");
   printf("  d <n>   : disable channel n\n");
-  printf("  c <n> <freq> <do_glitch> <glitch_period> : configure channel n\n");
+  printf("  c <n> <freq> <glitch_count> <glitch_start> <glitch_period> : configure channel n\n");
+  printf("  s <n>   : signal dump n\n");
+  printf("  v <n> <volume> : configure the volume of channel n (volume 1..31)\n");
+  printf("  b <n>   : set the base channel number (default 0)\n");
   printf("  q       : quit\n");
 }
 
@@ -228,17 +235,50 @@ void *console_thread(void *arg)
         break;
       }
 
+      case 's': {
+        char to_send[2];
+        to_send[0] = HOST_SIGNAL_DUMP_ONE;
+        to_send[1] = convert_atoi_substr(&ptr);
+        printf("Sending %d:%d\n", to_send[0], to_send[1]);
+        xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send);
+        break;
+      }
+
+      case 'v': {
+        char to_send[3];
+        to_send[0] = HOST_SET_VOLUME;
+        to_send[1] = convert_atoi_substr(&ptr);
+        to_send[2] = convert_atoi_substr(&ptr);
+        if (to_send[2] > 0 && to_send[2] < 32) {
+          printf("Sending %d:%d:%d\n", to_send[0], to_send[1], to_send[2]);
+          xscope_ep_request_upload(sockfd, 3, (unsigned char *)&to_send);
+        } else {
+          printf("Volume must be >0 and <32, %d given\n", to_send[2]);
+        }
+        break;
+      }
+
       case 'c': {
-        unsigned to_send[4];
+        unsigned to_send[5];
         unsigned char *to_send_c = (unsigned char *)(&to_send[0]);
         to_send_c[0] = HOST_CONFIGURE_ONE;
         to_send_c[1] = convert_atoi_substr(&ptr);
         to_send[1] = convert_atoi_substr(&ptr);
         to_send[2] = convert_atoi_substr(&ptr);
         to_send[3] = convert_atoi_substr(&ptr);
+        to_send[4] = convert_atoi_substr(&ptr);
 
         printf("Sending %d:%d\n", to_send_c[0], to_send_c[1]);
         xscope_ep_request_upload(sockfd, sizeof(to_send), (unsigned char *)&to_send);
+        break;
+      }
+
+      case 'b': {
+        char to_send[2];
+        to_send[0] = HOST_SET_BASE;
+        to_send[1] = convert_atoi_substr(&ptr);
+        printf("Sending %d:%d\n", to_send[0], to_send[1]);
+        xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send);
         break;
       }
 

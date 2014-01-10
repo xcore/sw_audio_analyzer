@@ -55,7 +55,7 @@ def runTest(args):
     master.sendLine(controller_id, "d 0")
     yield master.expect(Expected(controller_id, "Channel 0: disabled", 15))
     yield base.sleep(delay)
-    master.sendLine(controller_id, "c 0 {freq} 0 0".format(freq=freq))
+    master.sendLine(controller_id, "c 0 {freq}".format(freq=freq))
     yield master.expect(Expected(controller_id, "Generating sine table for chan 0", 15))
     yield base.sleep(delay)
     master.sendLine(controller_id, "e 0")
@@ -71,13 +71,13 @@ def runTest(args):
     log_info("Test %d Hz" % freq)
     num_points = int(48000/freq);
     for period in range(0, num_points):
-      log_info("Test for glitch at %d (%d/%d)" % (freq, period, num_points))
+      log_info("Test for glitch at %d (%d/%d)" % (freq, period + 1, num_points))
 
       # Disable all channels
       master.sendLine(controller_id, "d 0")
       yield master.expect(Expected(controller_id, "Channel 0: disabled", 15))
       yield base.sleep(delay)
-      master.sendLine(controller_id, "c 0 {freq} 1 {period}".format(freq=freq, period=period+offset))
+      master.sendLine(controller_id, "c 0 {freq} -1 0 {period}".format(freq=freq, period=period+offset))
       yield master.expect(Expected(controller_id, "Generating sine table for chan 0", 15))
       yield base.sleep(delay)
       master.sendLine(controller_id, "e 0")
