@@ -212,20 +212,26 @@ void audio_analyzer(server interface audio_analysis_if i_client,
         signal_dump_requested = 0;
       }
 
-      unsigned max_amp = 0;
+      unsigned max_pos_amp = 0;
+      unsigned max_neg_amp = 0;
       for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
         unsigned amp = buf[i] > 0 ? buf[i] : -buf[i];
-        if (amp > max_amp)
-          max_amp = amp;
+        if (buf[i] > 0) {
+          if (amp > max_pos_amp)
+            max_pos_amp = amp;
+        } else {
+          if (amp > max_neg_amp)
+            max_neg_amp = amp;
+        }
       }
       switch (state) {
         case ANALYZER_IDLE:
-          if (max_amp > AUDIO_SIGNAL_DETECT_THRESHOLD) {
+          if (max_pos_amp > AUDIO_SIGNAL_DETECT_THRESHOLD && max_neg_amp > AUDIO_SIGNAL_DETECT_THRESHOLD) {
             sig_detect_count++;
             if (sig_detect_count > SIGNAL_DETECT_COUNT_THRESHOLD) {
               state = ANALYZER_ACTIVE;
-              debug_printf("Channel %u: Signal detected (amplitute: %u)\n",
-                  chan_id, max_amp);
+              debug_printf("Channel %u: Signal detected (amplitute: %u,-%u)\n",
+                  chan_id, max_pos_amp, max_neg_amp);
               sig_detect_count = 0;
             }
           } else {
@@ -234,7 +240,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
           break;
 
         case ANALYZER_ACTIVE:
-          if (max_amp < AUDIO_SIGNAL_DETECT_THRESHOLD) {
+          if (max_pos_amp < AUDIO_SIGNAL_DETECT_THRESHOLD || max_neg_amp < AUDIO_SIGNAL_DETECT_THRESHOLD) {
             signal_lost(chan_id, state, glitch_count, reported_freq);
           } else {
             int glitch_detected = do_fft_analysis(prev, buf, chan_id, sample_rate,
@@ -245,7 +251,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
           break;
 
         case ANALYZER_GLITCH_DETECTED:
-          if (max_amp < AUDIO_SIGNAL_DETECT_THRESHOLD) {
+          if (max_pos_amp < AUDIO_SIGNAL_DETECT_THRESHOLD || max_neg_amp < AUDIO_SIGNAL_DETECT_THRESHOLD) {
             signal_lost(chan_id, state, glitch_count, reported_freq);
             i_error_reporting.cancel_glitch();
           } else {
@@ -255,7 +261,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
           break;
 
         case ANALYZER_GLITCH_REPORTED:
-          if (max_amp < AUDIO_SIGNAL_DETECT_THRESHOLD) {
+          if (max_pos_amp < AUDIO_SIGNAL_DETECT_THRESHOLD || max_neg_amp < AUDIO_SIGNAL_DETECT_THRESHOLD) {
             signal_lost(chan_id, state, glitch_count, reported_freq);
           } else {
             // Continue analysis to track glitch count
