@@ -23,8 +23,8 @@ void xscope_handler(chanend c_host_data,
   int send_block = 0;
   int data_outstanding = 0;
 
-  unsigned glitch_bin_count[I2S_MASTER_NUM_CHANS_ADC];
-  unsigned glitch_magnitude[I2S_MASTER_NUM_CHANS_ADC];
+  unsigned glitch_average[I2S_MASTER_NUM_CHANS_ADC];
+  unsigned glitch_max[I2S_MASTER_NUM_CHANS_ADC];
   int glitch_data[I2S_MASTER_NUM_CHANS_ADC][AUDIO_ANALYZER_FFT_SIZE];
   int glitch_data_valid[I2S_MASTER_NUM_CHANS_ADC];
   int glitch_data_needs_send[I2S_MASTER_NUM_CHANS_ADC];
@@ -132,11 +132,11 @@ void xscope_handler(chanend c_host_data,
 
       case i_error_reporting[int i].glitch_detected(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
                                                    int cur[AUDIO_ANALYZER_FFT_SIZE/2],
-                                                   unsigned count, unsigned magnitude) :
+                                                   unsigned average, unsigned max) :
         memcpy(glitch_data[i], prev, sizeof(prev));
         memcpy(&glitch_data[i][AUDIO_ANALYZER_FFT_SIZE/2], cur, sizeof(cur));
-        glitch_bin_count[i] = count;
-        glitch_magnitude[i] = magnitude;
+        glitch_average[i] = average;
+        glitch_max[i] = max;
         glitch_data_valid[i] = 1;
         break;
 
@@ -149,8 +149,8 @@ void xscope_handler(chanend c_host_data,
         break;
 
       case i_error_reporting[int i].report_glitch() :
-        debug_printf("ERROR: Channel %u: glitch detected (bin count %u, magnitude %u)\n",
-            chan_id_map[i], glitch_bin_count[i], glitch_magnitude[i]);
+        debug_printf("ERROR: Channel %u: glitch detected (average %u, max %u)\n",
+            chan_id_map[i], glitch_average[i], glitch_max[i]);
         glitch_data_needs_send[i] = 1;
         break;
 

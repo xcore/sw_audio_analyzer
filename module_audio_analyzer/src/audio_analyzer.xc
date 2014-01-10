@@ -32,12 +32,7 @@
 // Because the magnitude is a log function this is a simple subtraction operation
 // and so if there are less than NOISE_THRESHOLD bits of difference between the
 // peak and the bin then it is considered noise.
-#define NOISE_THRESHOLD                 23
-
-// There will be some bins that are higher due to harmonics and cross talk, but
-// noise will show up in a number of bins. This configures the number of bins
-// that have to be above the threshold before a glitch is detected
-#define NOISY_BIN_COUNT_THRESHOLD       20
+#define NOISE_THRESHOLD                 24
 
 // This function does a very fast but quite innacurate log2 calculation
 static unsigned fastlog2(unsigned long long v)
@@ -129,29 +124,29 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
     exit(0);
   }
 
-  unsigned tolerance = max_val - NOISE_THRESHOLD;
-
   // Check for a glitch - count number of bins which are considered to be above the
   // noise threshold. Allow a number of these for harmonics
-  int glitch_bin_count = 0;
+  int bin_count = 0;
   int max_noise_magnitude = 0;
+  int total_signal = 0;
   int min_peak_index = (max_index > PEAK_IGNORE_WINDOW) ? (max_index - PEAK_IGNORE_WINDOW) : 0;
   for (int i = LOW_FREQUENCY_IGNORE_THRESHOLD; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
     if (i >= min_peak_index && i < max_index + PEAK_IGNORE_WINDOW)
       continue;
 
-    if (mag[i] > tolerance) {
-      glitch_bin_count += 1;
-      if (mag[i] > max_noise_magnitude)
-        max_noise_magnitude = mag[i];
-    }
+    bin_count += 1;
+    total_signal += mag[i];
+    if (mag[i] > max_noise_magnitude)
+      max_noise_magnitude = mag[i];
   }
 
   int glitch_detected = 0;
-  if (glitch_bin_count > NOISY_BIN_COUNT_THRESHOLD) {
+  int average = (total_signal / bin_count);
+  unsigned tolerance = max_val - NOISE_THRESHOLD;
+  if (average > tolerance) {
     glitch_detected = 1;
     if (glitch_count == 0) {
-      i_error_reporting.glitch_detected(prev, cur, glitch_bin_count, max_noise_magnitude);
+      i_error_reporting.glitch_detected(prev, cur, average, max_noise_magnitude);
 
       if (chan_id == 0 && 0) {
         for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {

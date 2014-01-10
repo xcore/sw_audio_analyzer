@@ -17,7 +17,7 @@ interface error_reporting_if {
    */
   void glitch_detected(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
                        int cur[AUDIO_ANALYZER_FFT_SIZE/2],
-                       unsigned count, unsigned magnitude);
+                       unsigned average, unsigned max);
 
   /*
    * Dump the current signal data
