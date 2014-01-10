@@ -168,7 +168,7 @@ void print_console_usage()
   printf("  e <n>   : enable channel n\n");
   printf("  d a     : disable all channels\n");
   printf("  d <n>   : disable channel n\n");
-  printf("  c <n> <freq> <do_glitch> <glitch_period> : configure channel n\n");
+  printf("  c <n> <freq> <glitch_count> <glitch_start> <glitch_period> : configure channel n\n");
   printf("  s <n>   : signal dump n\n");
   printf("  v <n> <volume> : configure the volume of channel n (volume 1..31)\n");
   printf("  q       : quit\n");
@@ -257,15 +257,15 @@ void *console_thread(void *arg)
         break;
       }
 
-
       case 'c': {
-        unsigned to_send[4];
+        unsigned to_send[5];
         unsigned char *to_send_c = (unsigned char *)(&to_send[0]);
         to_send_c[0] = HOST_CONFIGURE_ONE;
         to_send_c[1] = convert_atoi_substr(&ptr);
         to_send[1] = convert_atoi_substr(&ptr);
         to_send[2] = convert_atoi_substr(&ptr);
         to_send[3] = convert_atoi_substr(&ptr);
+        to_send[4] = convert_atoi_substr(&ptr);
 
         printf("Sending %d:%d\n", to_send_c[0], to_send_c[1]);
         xscope_ep_request_upload(sockfd, sizeof(to_send), (unsigned char *)&to_send);

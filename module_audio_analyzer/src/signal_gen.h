@@ -11,7 +11,8 @@ typedef struct chan_conf_t {
   int enabled;
   enum chan_conf_type type;
   unsigned freq;
-  unsigned do_glitch;
+  int glitch_count;
+  unsigned glitch_start;
   unsigned glitch_period;
 } chan_conf_t;
 

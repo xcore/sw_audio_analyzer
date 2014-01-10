@@ -51,9 +51,10 @@ static void generate_sine_table(unsigned chan_id, chan_conf_t chan_conf,
     float x = sinf(((float) j) * 2 * M_PI / ratio);
     sine_table[j] = (int) (x * ldexp(2, volume));
   }
-  if (chan_conf.do_glitch)
-    debug_printf("Channel %u will glitch with period %u samples\n", chan_id,
-                 chan_conf.glitch_period);
+  if (chan_conf.glitch_count) {
+    debug_printf("Channel %u will glitch %d times, starting %u, period %u samples\n", chan_id,
+                 chan_conf.glitch_count, chan_conf.glitch_start, chan_conf.glitch_period);
+  }
 }
 
 /*
@@ -99,7 +100,8 @@ void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq,
       case i_conf.configure_channel(unsigned i, chan_conf_t conf) :
         chan_conf[i].type = conf.type;
         chan_conf[i].freq = conf.freq;
-        chan_conf[i].do_glitch = conf.do_glitch;
+        chan_conf[i].glitch_count = conf.glitch_count;
+        chan_conf[i].glitch_start = conf.glitch_start;
         chan_conf[i].glitch_period = conf.glitch_period;
         count[i] = gcount[i] = 0;
         generate_sine_table(i, chan_conf[i], sine_table[i], period[i], sample_freq, volume[i]);
@@ -123,10 +125,19 @@ void signal_gen(streaming chanend c_dac_samples, unsigned sample_freq,
         count[i]++;
         if (count[i] >= period[i])
           count[i] = 0;
-        gcount[i]++;
-        if (chan_conf[i].do_glitch && gcount[i] > chan_conf[i].glitch_period) {
-          gcount[i] = 0;
-          sample = 0;
+
+        if (chan_conf[i].glitch_count) {
+          if (chan_conf[i].glitch_start)
+            chan_conf[i].glitch_start--;
+          else
+            gcount[i]++;
+
+          if (gcount[i] >= chan_conf[i].glitch_period) {
+            gcount[i] = 0;
+            sample = 0;
+            if (chan_conf[i].glitch_count > 0)
+              chan_conf[i].glitch_count--;
+          }
         }
       }
       c_dac_samples <: sample;
