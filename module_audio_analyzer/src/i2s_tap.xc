@@ -64,8 +64,15 @@ void i2s_tap(streaming chanend c_i2s,
         }
 
         for (int i = 0; i < I2S_MASTER_NUM_CHANS_DAC; i++) {
-          int sample;
-          c_dac_samples :> sample;
+          int sample = 0;
+          // Attempt to read a signal but if there is none available then simply
+          // output 0. Assumes signal generator will be fast enough when running.
+          select {
+            case c_dac_samples :> sample:
+              break;
+            default:
+              break;
+          }
           c_i2s <: sample;
         }
 
