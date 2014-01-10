@@ -215,6 +215,10 @@ void audio_analyzer(server interface audio_analysis_if i_client,
       signal_dump_requested = 1;
       break;
 
+    case i_control.set_chan_id(unsigned id):
+      chan_id = id;
+      break;
+
     case i_scheduler.do_analysis():
       int (& restrict buf)[AUDIO_ANALYZER_FFT_SIZE/2] = pbuf;
 

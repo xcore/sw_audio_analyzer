@@ -171,6 +171,7 @@ void print_console_usage()
   printf("  c <n> <freq> <glitch_count> <glitch_start> <glitch_period> : configure channel n\n");
   printf("  s <n>   : signal dump n\n");
   printf("  v <n> <volume> : configure the volume of channel n (volume 1..31)\n");
+  printf("  b <n>   : set the base channel number (default 0)\n");
   printf("  q       : quit\n");
 }
 
@@ -269,6 +270,15 @@ void *console_thread(void *arg)
 
         printf("Sending %d:%d\n", to_send_c[0], to_send_c[1]);
         xscope_ep_request_upload(sockfd, sizeof(to_send), (unsigned char *)&to_send);
+        break;
+      }
+
+      case 'b': {
+        char to_send[2];
+        to_send[0] = HOST_SET_BASE;
+        to_send[1] = convert_atoi_substr(&ptr);
+        printf("Sending %d:%d\n", to_send[0], to_send[1]);
+        xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send);
         break;
       }
 

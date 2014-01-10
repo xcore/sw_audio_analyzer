@@ -32,7 +32,7 @@ void xscope_handler(chanend c_host_data,
   memset(glitch_data_needs_send, 0, sizeof(glitch_data_needs_send));
   int chan_id_map[I2S_MASTER_NUM_CHANS_ADC];
 
-  for (int i = 0;i < I2S_MASTER_NUM_CHANS_ADC; i++)
+  for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
     chan_id_map[i] = i;
 
   while (1) {
@@ -123,10 +123,18 @@ void xscope_handler(chanend c_host_data,
             i_chan_config.set_volume(chan_index, char_ptr[2]);
             break;
           }
+          case HOST_SET_BASE : {
+            int offset = char_ptr[1];
+            for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++) {
+              chan_id_map[i] = i + offset;
+              i_control[i].set_chan_id(chan_id_map[i]);
+            }
+            break;
+          }
         }
         break;
 
-      case i_error_reporting[int i].set_chan_id(int x):
+      case i_error_reporting[int i].set_chan_id(unsigned x):
         chan_id_map[i] = x;
         break;
 

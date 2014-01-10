@@ -9,7 +9,7 @@ interface error_reporting_if {
   /*
    * Set the channel id of the interface reporting errors.
    */
-  void set_chan_id(int id);
+  void set_chan_id(unsigned id);
 
   /*
    * A glitch has been detected, but could be due to signal ending so just
@@ -41,6 +41,11 @@ interface analysis_control_if {
    * Get a dump of the current signal data.
    */
   void request_signal_dump();
+
+  /*
+   * Host has re-configured the channel id
+   */
+  void set_chan_id(unsigned id);
 };
 
 interface audio_analysis_if {
