@@ -98,13 +98,14 @@ void xscope_handler(chanend c_host_data,
           }
           case HOST_CONFIGURE_ONE : {
             // There must be enough data for the word-aligned data
-            assert(bytes_read == 16);
+            assert(bytes_read == 20);
             chan_conf_t chan_config;
             chan_config.enabled = 0;
             chan_config.type = SINE;
             chan_config.freq = buffer[1];
-            chan_config.do_glitch = buffer[2];
-            chan_config.glitch_period = buffer[3];
+            chan_config.glitch_count = buffer[2];
+            chan_config.glitch_start = buffer[3];
+            chan_config.glitch_period = buffer[4];
             i_chan_config.configure_channel(chan_index, chan_config);
             break;
           }
