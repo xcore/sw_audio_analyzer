@@ -71,7 +71,8 @@ void xscope_handler(chanend c_host_data,
         if (chan_index == -1 &&
             (char_ptr[0] == HOST_ENABLE_ONE ||
              char_ptr[0] == HOST_DISABLE_ONE ||
-             char_ptr[0] == HOST_CONFIGURE_ONE)) {
+             char_ptr[0] == HOST_CONFIGURE_ONE ||
+             char_ptr[0] == HOST_SET_VOLUME)) {
           debug_printf("ERROR: Invalid channel id '%d'\n", char_ptr[1]);
           break;
         }
