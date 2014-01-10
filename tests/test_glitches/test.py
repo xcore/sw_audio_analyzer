@@ -71,7 +71,7 @@ def runTest(args):
     log_info("Test %d Hz" % freq)
     num_points = int(48000/freq);
     for period in range(0, num_points):
-      log_info("Test for glitch at %d (%d/%d)" % (freq, period, num_points))
+      log_info("Test for glitch at %d (%d/%d)" % (freq, period + 1, num_points))
 
       # Disable all channels
       master.sendLine(controller_id, "d 0")
