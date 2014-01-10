@@ -15,17 +15,29 @@
 #define AUDIO_SIGNAL_DETECT_THRESHOLD 90000000
 #endif
 
-#ifndef AUDIO_NOISE_FLOOR
-#define AUDIO_NOISE_FLOOR 25
-#endif
-
 #define DUMP_FIRST_ANALYSIS 0
 
+// To ensure a stable signal, wait a number of windows with a valid signal
+// before locking on to the signal and performing FFT analysis.
 #define SIGNAL_DETECT_COUNT_THRESHOLD   15
+
+// The peak signal is never a simple bin in the FFT. This configures
+// how wide of a window around the peak to ignore for noise.
 #define PEAK_IGNORE_WINDOW              15
-#define GLITCH_TOLERANCE_RATIO_A        8
-#define GLITCH_TOLERANCE_RATIO_B        25
-#define LOW_FREQUENCY_IGNORE_THRESHOLD   5
+
+// Ignore the first two FFT bins (DC component and ~50Hz signal)
+#define LOW_FREQUENCY_IGNORE_THRESHOLD   2
+
+// A signal is considered to be noise if it is a fraction of the peak value.
+// Because the magnitude is a log function this is a simple subtraction operation
+// and so if there are less than NOISE_THRESHOLD bits of difference between the
+// peak and the bin then it is considered noise.
+#define NOISE_THRESHOLD                 23
+
+// There will be some bins that are higher due to harmonics and cross talk, but
+// noise will show up in a number of bins. This configures the number of bins
+// that have to be above the threshold before a glitch is detected
+#define NOISY_BIN_COUNT_THRESHOLD       20
 
 // This function does a very fast but quite innacurate log2 calculation
 static unsigned fastlog2(unsigned long long v)
@@ -93,15 +105,14 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
     long long im_i = im[i];
     mag_spec = re_i * re_i + im_i * im_i;
     mag[i] = fastlog2(mag_spec);
-    if (i > LOW_FREQUENCY_IGNORE_THRESHOLD && mag[i] > max_val) {
+    if (i >= LOW_FREQUENCY_IGNORE_THRESHOLD && mag[i] > max_val) {
       max_val = mag[i];
       max_index = i;
     }
   }
 
-  if (max_val < AUDIO_NOISE_FLOOR)
+  if (max_val < NOISE_THRESHOLD)
     return 0;
-  max_val -= AUDIO_NOISE_FLOOR;
 
   if (!reported_freq) {
     unsigned freq;
@@ -118,35 +129,40 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
     exit(0);
   }
 
-  unsigned tolerance = max_val * GLITCH_TOLERANCE_RATIO_A / GLITCH_TOLERANCE_RATIO_B;
+  unsigned tolerance = max_val - NOISE_THRESHOLD;
 
-  // Check for a glitch
-  int glitch_detected = 0;
+  // Check for a glitch - count number of bins which are considered to be above the
+  // noise threshold. Allow a number of these for harmonics
+  int glitch_bin_count = 0;
+  int max_noise_magnitude = 0;
+  int min_peak_index = (max_index > PEAK_IGNORE_WINDOW) ? (max_index - PEAK_IGNORE_WINDOW) : 0;
   for (int i = LOW_FREQUENCY_IGNORE_THRESHOLD; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
-    if (i >= max_index - PEAK_IGNORE_WINDOW && i < max_index + PEAK_IGNORE_WINDOW)
+    if (i >= min_peak_index && i < max_index + PEAK_IGNORE_WINDOW)
       continue;
-    if (mag[i] < AUDIO_NOISE_FLOOR)
-      continue;
-    unsigned mag_i = mag[i] - AUDIO_NOISE_FLOOR;
 
-    if (mag_i > tolerance) {
-      glitch_detected = 1;
-      if (glitch_count == 0)
-        i_error_reporting.glitch_detected(prev, cur, i, mag_i);
-      glitch_count++;
+    if (mag[i] > tolerance) {
+      glitch_bin_count += 1;
+      if (mag[i] > max_noise_magnitude)
+        max_noise_magnitude = mag[i];
+    }
+  }
 
-      if (chan_id == 1 && 0) {
+  int glitch_detected = 0;
+  if (glitch_bin_count > NOISY_BIN_COUNT_THRESHOLD) {
+    glitch_detected = 1;
+    if (glitch_count == 0) {
+      i_error_reporting.glitch_detected(prev, cur, glitch_bin_count, max_noise_magnitude);
+
+      if (chan_id == 0 && 0) {
         for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
-          debug_printf("%d,", prev[i]);
-        }
-        for (int i = 0; i < AUDIO_ANALYZER_FFT_SIZE/2; i++) {
-          debug_printf("%d,", cur[i]);
+          debug_printf("%d,", mag[i]);
         }
         debug_printf("\n");
       }
-      break;
     }
+    glitch_count++;
   }
+
   return glitch_detected;
 }
 

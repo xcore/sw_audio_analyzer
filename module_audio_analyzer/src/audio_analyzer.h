@@ -16,13 +16,14 @@ interface error_reporting_if {
    * provide samples for now.
    */
   void glitch_detected(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
-      int cur[AUDIO_ANALYZER_FFT_SIZE/2], int index, int magnitude);
+                       int cur[AUDIO_ANALYZER_FFT_SIZE/2],
+                       unsigned count, unsigned magnitude);
 
   /*
    * Dump the current signal data
    */
   void signal_dump(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
-      int cur[AUDIO_ANALYZER_FFT_SIZE/2]);
+                   int cur[AUDIO_ANALYZER_FFT_SIZE/2]);
 
   /*
    * Report the glitch to the host.
