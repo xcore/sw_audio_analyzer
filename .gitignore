@@ -21,3 +21,5 @@ toplevel_doc/*
 *.buildinfo
 **/.settings
 run_xpd.log
+host_audio_analyzer/audio_analyzer
+*.xmt
