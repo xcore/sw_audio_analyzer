@@ -17,16 +17,7 @@ USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master module_
 # XCC_XC_FLAGS, XCC_C_FLAGS, XCC_ASM_FLAGS, XCC_CPP_FLAGS
 # If the variable XCC_MAP_FLAGS is set it overrides the flags passed to
 # xcc for the final link (mapping) stage.
-COMMON_FLAGS = -O3 -g -report -save-temps
-XCC_FLAGS_SimulatorLoopback = $(COMMON_FLAGS) -DSIMULATOR_LOOPBACK=1
-XCC_FLAGS_GlitchInjector = $(COMMON_FLAGS)
-XCC_FLAGS_TestDevice1 = $(COMMON_FLAGS)
-XCC_FLAGS_TestDevice2 = $(COMMON_FLAGS)
-
-INCLUDE_ONLY_IN_SimulatorLoopback = src/config_SimulatorLoopback
-INCLUDE_ONLY_IN_GlitchInjector = src/config_GlitchInjector
-INCLUDE_ONLY_IN_TestDevice1 = src/config_TestDevice1
-INCLUDE_ONLY_IN_TestDevice2 = src/config_TestDevice2
+XCC_FLAGS = -O3 -g -report -save-temps
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make system.
 VERBOSE = 0
