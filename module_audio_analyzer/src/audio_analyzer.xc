@@ -32,7 +32,7 @@
 // Because the magnitude is a log function this is a simple subtraction operation
 // and so if there are less than NOISE_THRESHOLD bits of difference between the
 // peak and the bin then it is considered noise.
-#define NOISE_THRESHOLD                 24
+#define NOISE_THRESHOLD                 36
 
 // This function does a very fast but quite innacurate log2 calculation
 static unsigned fastlog2(unsigned long long v)
@@ -99,7 +99,9 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
     long long re_i = wsig[i];
     long long im_i = im[i];
     mag_spec = re_i * re_i + im_i * im_i;
-    mag[i] = fastlog2(mag_spec);
+    // db = 10log10(sqrt(re^2+im^2)) =~ 1.5 * log2(re^2 * im^2)
+    unsigned db = (fastlog2(mag_spec) * 3) / 2;
+    mag[i] = db;
     if (i >= LOW_FREQUENCY_IGNORE_THRESHOLD && mag[i] > max_val) {
       max_val = mag[i];
       max_index = i;
