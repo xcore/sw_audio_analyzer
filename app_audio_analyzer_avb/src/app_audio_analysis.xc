@@ -10,6 +10,7 @@
 #include "xassert.h"
 #include "signal_gen.h"
 #include "xscope_handler.h"
+#include "ethernet_tap.h"
 
 #ifndef SIMULATOR_LOOPBACK
 #define SIMULATOR_LOOPBACK 0
@@ -72,6 +73,7 @@ int main(){
   interface audio_analysis_if i_analysis[4];
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
   interface channel_config_if i_chan_config;
+  interface ethernet_tap_relay_control_if i_relay_control;
   /* Work-around for BUG 15107 - don't use array */
   interface error_reporting_if i_error_reporting_0, i_error_reporting_1,
                                i_error_reporting_2, i_error_reporting_3;
@@ -100,7 +102,7 @@ int main(){
         *((int * unsafe) (&(*q)[2])) = *((int * unsafe) &i_control_2);
         *((int * unsafe) (&(*q)[3])) = *((int * unsafe) &i_control_3);
 
-        xscope_handler(c_host_data, i_chan_config, *q, *p, 4);
+        xscope_handler(c_host_data, i_chan_config, i_relay_control, *q, *p, 4);
       }
 
     on tile[1].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0,
@@ -120,6 +122,8 @@ int main(){
         xscope_config_io(XSCOPE_IO_NONE);
       i2s_tap(c_i2s_data, c_dac_samples, i_analysis, I2S_MASTER_NUM_CHANS_DAC);
     }
+
+    on tile[1]: relay_control(i_relay_control);
 
     on tile[AUDIO_IO_TILE]: audio(c_i2s_data);
     on tile[AUDIO_IO_TILE]: genclock();

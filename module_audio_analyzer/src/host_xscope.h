@@ -11,6 +11,8 @@ enum xscope_host_commands {
   HOST_SIGNAL_DUMP_ONE,
   HOST_SET_VOLUME,
   HOST_SET_BASE,
+  HOST_RELAY_OPEN,
+  HOST_RELAY_CLOSE,
 };
 
 #endif // __host_xscope_h__

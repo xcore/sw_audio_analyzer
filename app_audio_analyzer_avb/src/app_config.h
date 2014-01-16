@@ -7,3 +7,5 @@
   { 1, SINE, 3000, 0, 0, 0 }, \
   { 1, SINE, 4000, 0, 0, 0 }, \
  }
+
+#define RELAY_CONTROL 1
