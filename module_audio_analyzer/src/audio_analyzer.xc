@@ -6,6 +6,7 @@
 #include "stdlib.h"
 #include "hann.h"
 #include "xs1.h"
+#include "xassert.h"
 
 #ifdef __audio_analyzer_conf_h_exists__
 #include "audio_analyzer_conf.h"
@@ -34,6 +35,13 @@
 // peak and the bin then it is considered noise.
 #define NOISE_THRESHOLD                 36
 
+// The amount of change, in dB, that is required for the analyzer to report
+// a change in volume checking mode
+#define VOLUME_CHANGE_REPORT_THRESHOLD  3
+
+// How many windows of change are required to report a volume change
+#define VOLUME_STABILIZATION_COUNT 5
+
 // This function does a very fast but quite innacurate log2 calculation
 static unsigned fastlog2(unsigned long long v)
 {
@@ -41,6 +49,17 @@ static unsigned fastlog2(unsigned long long v)
   if (z == 32)
     z += __builtin_clz((unsigned) v);
   return 64-z;
+}
+
+static int to_db(unsigned v) {
+  // db = 10log10(v) =~ 3 * log2(v)
+  // Go negative under a maximum of 2^31
+  return ((fastlog2(v)-31) * 3);
+}
+
+static unsigned mag_to_db(unsigned long long v) {
+  // db = 10log10(sqrt(v)) =~ 1.5 * log2(v)
+  return (fastlog2(v) * 3) / 2;
 }
 
 static inline int hmul(int a, int b) {
@@ -99,9 +118,7 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
     long long re_i = wsig[i];
     long long im_i = im[i];
     mag_spec = re_i * re_i + im_i * im_i;
-    // db = 10log10(sqrt(re^2+im^2)) =~ 1.5 * log2(re^2 * im^2)
-    unsigned db = (fastlog2(mag_spec) * 3) / 2;
-    mag[i] = db;
+    mag[i] = mag_to_db(mag_spec);
     if (i >= LOW_FREQUENCY_IGNORE_THRESHOLD && mag[i] > max_val) {
       max_val = mag[i];
       max_index = i;
@@ -164,17 +181,18 @@ static int do_fft_analysis(int prev[AUDIO_ANALYZER_FFT_SIZE/2],
 }
 
 typedef enum {
+  ANALYZER_DISABLED,
   ANALYZER_IDLE,
   ANALYZER_ACTIVE,
   ANALYZER_GLITCH_DETECTED,
   ANALYZER_GLITCH_REPORTED,
+  ANALYZER_VOLUME_CHECK
 } anayzer_state_t;
 
 static void inline signal_lost(unsigned chan_id, anayzer_state_t &state,
     int &glitch_count, int &reported_freq)
 {
   debug_printf("Channel %u: Lost signal having detected %d glitches\n", chan_id, glitch_count);
-
   state = ANALYZER_IDLE;
   reported_freq = 0;
   glitch_count = 0;
@@ -195,6 +213,8 @@ void audio_analyzer(server interface audio_analysis_if i_client,
   int reported_freq = 0;
   int prev[AUDIO_ANALYZER_FFT_SIZE/2];
   int signal_dump_requested = 0;
+  int current_vol = -93;
+  int vol_stabilization_count = 0;
   memset(prev, 0, sizeof(prev));
 
   debug_printf("Starting audio analyzer task\n");
@@ -221,6 +241,30 @@ void audio_analyzer(server interface audio_analysis_if i_client,
       chan_id = id;
       break;
 
+    case i_control.set_mode(unsigned mode):
+      switch (mode) {
+      case ANALYZER_VOLUME_CHECK_MODE:
+        state = ANALYZER_VOLUME_CHECK;
+        current_vol = -93;
+        vol_stabilization_count = 0;
+        debug_printf("Channel %d: Set mode to volume check\n", chan_id);
+        break;
+      case ANALYZER_SINE_CHECK_MODE:
+        state = ANALYZER_IDLE;
+        sig_detect_count = 0;
+        glitch_count = 0;
+        reported_freq = 0;
+        debug_printf("Channel %d: Set mode to sine check\n", chan_id);
+        break;
+      case ANALYZER_DISABLED_MODE:
+        state = ANALYZER_DISABLED;
+        debug_printf("Channel %d: Set mode to disabled\n", chan_id);
+        break;
+      default:
+        unreachable();
+        break;
+      }
+      break;
     case i_scheduler.do_analysis():
       int (& restrict buf)[AUDIO_ANALYZER_FFT_SIZE/2] = pbuf;
 
@@ -242,6 +286,21 @@ void audio_analyzer(server interface audio_analysis_if i_client,
         }
       }
       switch (state) {
+        case ANALYZER_VOLUME_CHECK:
+          int max_vol = to_db(max_pos_amp);
+          int diff = abs(max_vol - current_vol);
+          if (diff > VOLUME_CHANGE_REPORT_THRESHOLD) {
+            vol_stabilization_count++;
+            if (vol_stabilization_count > VOLUME_STABILIZATION_COUNT) {
+              debug_printf("Channel %d: Volume change by %d\n", chan_id,
+                           max_vol - current_vol);
+              current_vol = max_vol;
+              vol_stabilization_count = 0;
+            }
+          } else {
+            vol_stabilization_count = 0;
+          }
+          break;
         case ANALYZER_IDLE:
           if (max_pos_amp > AUDIO_SIGNAL_DETECT_THRESHOLD && max_neg_amp > AUDIO_SIGNAL_DETECT_THRESHOLD) {
             sig_detect_count++;
