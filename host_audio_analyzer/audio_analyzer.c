@@ -172,6 +172,7 @@ void print_console_usage()
   printf("  s <n>   : signal dump n\n");
   printf("  v <n> <volume> : configure the volume of channel n (volume 1..31)\n");
   printf("  b <n>   : set the base channel number (default 0)\n");
+  printf("  r [o|c] : (o)pen or (c)lose the relay (if supported by analyzer)\n");
   printf("  q       : quit\n");
 }
 
@@ -279,6 +280,22 @@ void *console_thread(void *arg)
         to_send[1] = convert_atoi_substr(&ptr);
         printf("Sending %d:%d\n", to_send[0], to_send[1]);
         xscope_ep_request_upload(sockfd, 2, (unsigned char *)&to_send);
+        break;
+      }
+
+      case 'r': {
+        char to_send[1];
+        char next = get_next_char(&ptr);
+        if (next == 'o') {
+          to_send[0] = HOST_RELAY_OPEN;
+        } else if (next == 'c') {
+          to_send[0] = HOST_RELAY_CLOSE;
+        } else {
+          printf("Invalid argument '%c' for relay control\n", next);
+          break;
+        }
+        printf("Sending %d\n", to_send[0]);
+        xscope_ep_request_upload(sockfd, 1, (unsigned char *)&to_send);
         break;
       }
 

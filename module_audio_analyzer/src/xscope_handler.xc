@@ -14,6 +14,9 @@
 
 void xscope_handler(chanend c_host_data,
     client interface channel_config_if i_chan_config,
+#if RELAY_CONTROL
+    client interface ethernet_tap_relay_control_if i_relay_control,
+#endif
     client interface analysis_control_if i_control[n],
     server interface error_reporting_if i_error_reporting[n], unsigned n)
 {
@@ -132,6 +135,14 @@ void xscope_handler(chanend c_host_data,
             }
             break;
           }
+#if RELAY_CONTROL
+          case HOST_RELAY_OPEN :
+            i_relay_control.set_relay_open();
+            break;
+          case HOST_RELAY_CLOSE :
+            i_relay_control.set_relay_close();
+            break;
+#endif
         }
         break;
 
