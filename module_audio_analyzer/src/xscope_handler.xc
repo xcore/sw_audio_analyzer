@@ -38,6 +38,13 @@ void xscope_handler(chanend c_host_data,
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
     chan_id_map[i] = i;
 
+  timer tmr;
+  int t;
+  const int ticks_per_second = 100000000;
+  int second_count = 0;
+  int minute_count = 0;
+  tmr :> t;
+
   while (1) {
     unsigned int buffer[256/4]; // The maximum read size is 256 bytes
     unsigned char *char_ptr = (unsigned char *)buffer;
@@ -61,6 +68,17 @@ void xscope_handler(chanend c_host_data,
     }
 
     select {
+      case tmr when timerafter(t + ticks_per_second) :> void:
+        second_count += 1;
+        if (second_count == 60) {
+          second_count = 0;
+          minute_count += 1;
+          if (minute_count % 5 == 0) {
+	    debug_printf("Time elapsed: %d mins\n", minute_count);
+	  }
+        }
+        t += ticks_per_second;
+      break;
       case xscope_data_from_host(c_host_data, (unsigned char *)buffer, bytes_read):
         if (bytes_read < 1) {
           debug_printf("ERROR: Received '%d' bytes\n", bytes_read);
