@@ -87,8 +87,6 @@ void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
     is_glitch = (int_data[0] >> 7) & 0x1;
     basename = is_glitch ? "glitch" : "signal";
 
-    printf("Host: received %s on interface %d\n", basename, g_interface);
-
     /* Create a unique glitch filename */
     do {
       sprintf(filename, "%s_%d_%d.csv", basename, g_interface, i);
@@ -99,6 +97,8 @@ void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
     if (g_file_handle == NULL)
       print_and_exit("ERROR: Failed to open file to write %s '%s'\n", basename, filename);
 
+    printf("Host: received %s on interface %d dumping to %s\n", basename, g_interface,
+        filename);
 
   } else {
     int data_words = data_len/4;
