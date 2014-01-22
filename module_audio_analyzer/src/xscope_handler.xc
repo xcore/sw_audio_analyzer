@@ -6,60 +6,38 @@
 #include "xscope_handler.h"
 #include "host_xscope.h"
 
+#ifdef RELAY_CONTROL
+#include "ethernet_tap.h"
+#endif
+
 #define NUM_BLOCKS 32
 #define BLOCK_SIZE_WORDS (AUDIO_ANALYZER_FFT_SIZE / NUM_BLOCKS)
 
 #define ONE_MICROSECOND 100
 #define BLOCK_DELAY (50 * ONE_MICROSECOND)
 
+[[combinable]]
 void xscope_handler(chanend c_host_data,
+    client interface error_flow_control_if i_flow_control,
     client interface channel_config_if i_chan_config,
-#if RELAY_CONTROL
-    client interface ethernet_tap_relay_control_if i_relay_control,
-#endif
-    client interface analysis_control_if i_control[n],
-    server interface error_reporting_if i_error_reporting[n], unsigned n)
+    client interface analysis_control_if i_control[n], unsigned n)
 {
   xscope_connect_data_from_host(c_host_data);
 
-  int sending = -1;
-  int send_block = 0;
-  int data_outstanding = 0;
+  // BUG 15192 - have to manually combine the relay control
+  timer t;
+  int relay_time;
+  int relay_active = 0;
 
-  unsigned glitch_average[I2S_MASTER_NUM_CHANS_ADC];
-  unsigned glitch_max[I2S_MASTER_NUM_CHANS_ADC];
-  int glitch_data[I2S_MASTER_NUM_CHANS_ADC][AUDIO_ANALYZER_FFT_SIZE];
-  int glitch_data_valid[I2S_MASTER_NUM_CHANS_ADC];
-  int glitch_data_needs_send[I2S_MASTER_NUM_CHANS_ADC];
-  memset(glitch_data_valid, 0, sizeof(glitch_data_valid));
-  memset(glitch_data_needs_send, 0, sizeof(glitch_data_needs_send));
+  unsigned int buffer[256/4]; // The maximum read size is 256 bytes
+  unsigned char *char_ptr = (unsigned char *)buffer;
+  int bytes_read = 0;
+
   int chan_id_map[I2S_MASTER_NUM_CHANS_ADC];
-
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
     chan_id_map[i] = i;
 
   while (1) {
-    unsigned int buffer[256/4]; // The maximum read size is 256 bytes
-    unsigned char *char_ptr = (unsigned char *)buffer;
-    int bytes_read = 0;
-
-    if (sending == -1) {
-      for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++) {
-        if (glitch_data_needs_send[i]) {
-          // Start sending this glitch data
-          sending = i;
-          glitch_data_needs_send[i] = 0;
-
-          // Send the total number of data words, whether it is glitch data and interface
-          // in one word
-          xscope_int(AUDIO_ANALYZER_GLITCH_DATA, (sizeof(glitch_data[i])/4) << 8 |
-              ((glitch_data_valid[i] & 0x1) << 7) |
-              chan_id_map[i]);
-          break;
-        }
-      }
-    }
-
     select {
       case xscope_data_from_host(c_host_data, (unsigned char *)buffer, bytes_read):
         if (bytes_read < 1) {
@@ -82,7 +60,7 @@ void xscope_handler(chanend c_host_data,
 
         switch (char_ptr[0]) {
           case HOST_ACK_DATA :
-            data_outstanding = 0;
+            i_flow_control.data_read();
             break;
           case HOST_ENABLE_ALL : 
             i_chan_config.enable_all_channels();
@@ -137,13 +115,69 @@ void xscope_handler(chanend c_host_data,
           }
 #if RELAY_CONTROL
           case HOST_RELAY_OPEN :
-            i_relay_control.set_relay_open();
+            ethernet_tap_set_relay_open();
+            t :> relay_time;
+            relay_active = 1;
             break;
           case HOST_RELAY_CLOSE :
-            i_relay_control.set_relay_close();
+            ethernet_tap_set_relay_close();
+            t :> relay_time;
+            relay_active = 1;
             break;
 #endif
         }
+        break;
+
+#if RELAY_CONTROL
+      case relay_active => t when timerafter(relay_time + TEN_MILLISEC) :> void :
+        ethernet_tap_set_control_idle();
+        relay_active = 0;
+        break;
+#endif
+    }
+  }
+}
+
+void error_reporter(server interface error_flow_control_if i_flow_control,
+                    server interface error_reporting_if i_error_reporting[n], unsigned n)
+{
+  int sending = -1;
+  int data_outstanding = 0;
+  int send_block = 0;
+
+  unsigned glitch_average[I2S_MASTER_NUM_CHANS_ADC];
+  unsigned glitch_max[I2S_MASTER_NUM_CHANS_ADC];
+  int glitch_data[I2S_MASTER_NUM_CHANS_ADC][AUDIO_ANALYZER_FFT_SIZE];
+  int glitch_data_valid[I2S_MASTER_NUM_CHANS_ADC];
+  int glitch_data_needs_send[I2S_MASTER_NUM_CHANS_ADC];
+  memset(glitch_data_valid, 0, sizeof(glitch_data_valid));
+  memset(glitch_data_needs_send, 0, sizeof(glitch_data_needs_send));
+  int chan_id_map[I2S_MASTER_NUM_CHANS_ADC];
+
+  for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
+    chan_id_map[i] = i;
+
+  while (1) {
+    if (sending == -1) {
+      for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++) {
+        if (glitch_data_needs_send[i]) {
+          // Start sending this glitch data
+          sending = i;
+          glitch_data_needs_send[i] = 0;
+
+          // Send the total number of data words, whether it is glitch data and interface
+          // in one word
+          xscope_int(AUDIO_ANALYZER_GLITCH_DATA, (sizeof(glitch_data[i])/4) << 8 |
+              ((glitch_data_valid[i] & 0x1) << 7) |
+              chan_id_map[i]);
+          break;
+        }
+      }
+    }
+
+    select {
+      case i_flow_control.data_read():
+        data_outstanding = 0;
         break;
 
       case i_error_reporting[int i].set_chan_id(unsigned x):

@@ -36,6 +36,13 @@ interface error_reporting_if {
   void cancel_glitch();
 };
 
+interface error_flow_control_if {
+  /*
+   * Informs the error handler that the acknowledge has been received from the host.
+   */
+  void data_read();
+};
+
 interface analysis_control_if {
   /*
    * Get a dump of the current signal data.
