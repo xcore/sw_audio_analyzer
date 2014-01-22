@@ -16,6 +16,16 @@ enum ramp_analyzer_state {
 
 #define INITIAL_IGNORE_COUNT 10000
 
+static inline int bad_parity(unsigned x)
+{
+    unsigned X = (x>>4);
+    crc32(X, 0, 1);
+    return X & 1;
+}
+
+
+#define DETECT_COUNT_THRESHOLD (20)
+
 [[distributable]]
 static void analyze_ramp_aux(server interface analyze_ramp_if i, unsigned chan_id)
 {
@@ -24,6 +34,7 @@ static void analyze_ramp_aux(server interface analyze_ramp_if i, unsigned chan_i
   int prev = 0;
   int step = 0;
   int init_count = 0;
+  int detect_count = 0;
   while (1) {
     select {
     case i.analyze_sample(int sample):
@@ -37,15 +48,27 @@ static void analyze_ramp_aux(server interface analyze_ramp_if i, unsigned chan_i
         break;
       case WAITING_FOR_SIGNAL:
         if (sample != 0) {
-          debug_printf("Channel %u: Signal detected (initial value %d)\n",
-                       chan_id, sample);
           state = DETECTING;
+	  detect_count = 0;
         }
         break;
       case DETECTING:
-        step = ((sample << 8) - (prev << 8)) >> 8;
-        debug_printf("Channel %u: step = %d\n", chan_id, step);
-        state = CHECKING;
+        if (detect_count == 0) {
+	  step = ((sample << 8) - (prev << 8)) >> 8;
+	  detect_count++;
+	} else {
+	  int diff = ((sample << 8) - (prev << 8)) >> 8;
+	  if (diff != step) {
+	    state = WAITING_FOR_SIGNAL;
+	  }
+	  else {
+	    detect_count++;
+	    if (detect_count > DETECT_COUNT_THRESHOLD) {
+	      debug_printf("Channel %u: step = %d\n", chan_id, step);
+	      state = CHECKING;
+	    }
+	  }
+	}
         break;
       case CHECKING:
         int diff = ((sample << 8) - (prev << 8)) >> 8;
@@ -70,6 +93,8 @@ static void split_signal(streaming chanend c_dig_in,
   while (1) {
     int sample;
     c_dig_in :> sample;
+    if (bad_parity(sample))
+      continue;
     int lr = ((sample & 0xF) == FRAME_Y) ? 1 : 0;
     sample >>= 4;
     sample = sext(sample, 24);

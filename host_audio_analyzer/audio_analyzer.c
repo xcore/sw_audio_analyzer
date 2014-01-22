@@ -173,6 +173,7 @@ void print_console_usage()
   printf("  v <n> <volume> : configure the volume of channel n (volume 1..31)\n");
   printf("  b <n>   : set the base channel number (default 0)\n");
   printf("  r [o|c] : (o)pen or (c)lose the relay (if supported by analyzer)\n");
+  printf("  m <n> [v|s|d] : set the mode of analyzer n to (v)olume check, (s)ine check or (d)isabled\n");
   printf("  q       : quit\n");
 }
 
@@ -304,6 +305,28 @@ void *console_thread(void *arg)
         print_console_usage();
         break;
 
+      case 'm': {
+        char to_send[3];
+        to_send[0] = HOST_SET_MODE;
+        to_send[1] = convert_atoi_substr(&ptr);
+        char next = get_next_char(&ptr);
+        if (next == 'v') {
+          to_send[2] = HOST_MODE_VOLUME;
+        }
+        else if (next == 's') {
+          to_send[2] = HOST_MODE_SINE;
+        } else if (next == 'd') {
+          to_send[2] = HOST_MODE_DISABLED;
+        }
+        else {
+          printf("Invalid mode\n");
+          break;
+        }
+        printf("Sending %d:%d:%d\n", to_send[0], to_send[1], to_send[2]);
+        xscope_ep_request_upload(sockfd, 3, (unsigned char *)&to_send);
+        break;
+      }
+
       default:
         printf("Unrecognised command '%s'\n", buffer);
         print_console_usage();
@@ -337,6 +360,8 @@ int main(int argc, char *argv[])
   int err = 0;
   int sockfds[1] = {0};
   int c = 0;
+
+  setvbuf(stdout, NULL, _IOLBF, 0);
 
   while ((c = getopt(argc, argv, "s:p:")) != -1) {
     switch (c) {

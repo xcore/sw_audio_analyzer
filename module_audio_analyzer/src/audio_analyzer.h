@@ -5,6 +5,12 @@
 #define AUDIO_ANALYZER_FFT_SIZE 1024
 #endif
 
+enum analyzer_mode {
+  ANALYZER_VOLUME_CHECK_MODE,
+  ANALYZER_SINE_CHECK_MODE,
+  ANALYZER_DISABLED_MODE
+};
+
 interface error_reporting_if {
   /*
    * Set the channel id of the interface reporting errors.
@@ -53,6 +59,12 @@ interface analysis_control_if {
    * Host has re-configured the channel id
    */
   void set_chan_id(unsigned id);
+
+  /*
+   * Set the mode of the analyzer.
+   */
+  void set_mode(unsigned mode);
+
 };
 
 interface audio_analysis_if {

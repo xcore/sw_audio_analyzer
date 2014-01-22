@@ -37,8 +37,26 @@ void xscope_handler(chanend c_host_data,
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
     chan_id_map[i] = i;
 
+  timer tmr;
+  int t;
+  const int ticks_per_second = 100000000;
+  int second_count = 0;
+  int minute_count = 0;
+  tmr :> t;
+
   while (1) {
     select {
+      case tmr when timerafter(t + ticks_per_second) :> void:
+        second_count += 1;
+        if (second_count == 60) {
+          second_count = 0;
+          minute_count += 1;
+          if (minute_count % 5 == 0) {
+            debug_printf("Time elapsed: %d mins\n", minute_count);
+          }
+        }
+        t += ticks_per_second;
+      break;
       case xscope_data_from_host(c_host_data, (unsigned char *)buffer, bytes_read):
         if (bytes_read < 1) {
           debug_printf("ERROR: Received '%d' bytes\n", bytes_read);
@@ -53,7 +71,8 @@ void xscope_handler(chanend c_host_data,
             (char_ptr[0] == HOST_ENABLE_ONE ||
              char_ptr[0] == HOST_DISABLE_ONE ||
              char_ptr[0] == HOST_CONFIGURE_ONE ||
-             char_ptr[0] == HOST_SET_VOLUME)) {
+             char_ptr[0] == HOST_SET_VOLUME ||
+             char_ptr[0] == HOST_SET_MODE)) {
           debug_printf("ERROR: Invalid channel id '%d'\n", char_ptr[1]);
           break;
         }
@@ -62,7 +81,7 @@ void xscope_handler(chanend c_host_data,
           case HOST_ACK_DATA :
             i_flow_control.data_read();
             break;
-          case HOST_ENABLE_ALL : 
+          case HOST_ENABLE_ALL :
             i_chan_config.enable_all_channels();
             break;
           case HOST_ENABLE_ONE : {
@@ -70,7 +89,7 @@ void xscope_handler(chanend c_host_data,
             i_chan_config.enable_channel(chan_index);
             break;
           }
-          case HOST_DISABLE_ALL : 
+          case HOST_DISABLE_ALL :
             i_chan_config.disable_all_channels();
             break;
           case HOST_DISABLE_ONE : {
@@ -112,6 +131,27 @@ void xscope_handler(chanend c_host_data,
               i_control[i].set_chan_id(chan_id_map[i]);
             }
             break;
+          }
+          case HOST_SET_MODE: {
+            debug_printf("Got set mode command\n");
+            int mode = -1;
+            switch (char_ptr[2]) {
+              case HOST_MODE_DISABLED:
+                mode = ANALYZER_DISABLED_MODE;
+                break;
+              case HOST_MODE_SINE:
+                mode = ANALYZER_SINE_CHECK_MODE;
+                break;
+              case HOST_MODE_VOLUME:
+                mode = ANALYZER_VOLUME_CHECK_MODE;
+                break;
+              default:
+                debug_printf("Invalid mode\n");
+                break;
+            }
+          if (mode != -1)
+            i_control[chan_index].set_mode(mode);
+          break;
           }
 #if RELAY_CONTROL
           case HOST_RELAY_OPEN :
@@ -208,7 +248,7 @@ void error_reporter(server interface error_flow_control_if i_flow_control,
         glitch_data_needs_send[i] = 1;
         break;
 
-      case i_error_reporting[int i].cancel_glitch() : 
+      case i_error_reporting[int i].cancel_glitch() :
         glitch_data_valid[i] = 0;
         break;
 
