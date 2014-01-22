@@ -1,6 +1,12 @@
 #ifndef __host_xscope_h__
 #define __host_xscope_h__
 
+enum xscope_host_analyzer_mode {
+  HOST_MODE_VOLUME,
+  HOST_MODE_SINE,
+  HOST_MODE_DISABLED
+};
+
 enum xscope_host_commands {
   HOST_ENABLE_ALL,
   HOST_ENABLE_ONE,
@@ -13,6 +19,7 @@ enum xscope_host_commands {
   HOST_SET_BASE,
   HOST_RELAY_OPEN,
   HOST_RELAY_CLOSE,
+  HOST_SET_MODE,
 };
 
 #endif // __host_xscope_h__
