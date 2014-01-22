@@ -25,7 +25,7 @@ void xscope_handler(chanend c_host_data,
   xscope_connect_data_from_host(c_host_data);
 
   // BUG 15192 - have to manually combine the relay control
-  timer t;
+  timer relay_tmr;
   int relay_time;
   int relay_active = 0;
 
@@ -156,12 +156,12 @@ void xscope_handler(chanend c_host_data,
 #if RELAY_CONTROL
           case HOST_RELAY_OPEN :
             ethernet_tap_set_relay_open();
-            t :> relay_time;
+            relay_tmr :> relay_time;
             relay_active = 1;
             break;
           case HOST_RELAY_CLOSE :
             ethernet_tap_set_relay_close();
-            t :> relay_time;
+            relay_tmr :> relay_time;
             relay_active = 1;
             break;
 #endif
@@ -169,7 +169,7 @@ void xscope_handler(chanend c_host_data,
         break;
 
 #if RELAY_CONTROL
-      case relay_active => t when timerafter(relay_time + TEN_MILLISEC) :> void :
+      case relay_active => relay_tmr when timerafter(relay_time + TEN_MILLISEC) :> void :
         ethernet_tap_set_control_idle();
         relay_active = 0;
         break;
