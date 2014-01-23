@@ -140,8 +140,8 @@ int main(){
     on tile[1]:
       unsafe {
         int a[4];
-        server interface error_reporting_if (* unsafe p)[4] =
-          (server interface error_reporting_if (* unsafe)[4]) &a;
+        server interface error_reporting_if (* unsafe p)[NUM_ANALYSIS_INTERFACES] =
+          (server interface error_reporting_if (* unsafe)[NUM_ANALYSIS_INTERFACES]) &a;
         *((int * unsafe) (&(*p)[0])) = *((int * unsafe) &i_error_reporting_0);
         *((int * unsafe) (&(*p)[1])) = *((int * unsafe) &i_error_reporting_1);
 #if NUM_ANALYSIS_INTERFACES == 4
@@ -150,8 +150,8 @@ int main(){
 #endif
 
         int b[4];
-        client interface analysis_control_if (* unsafe q)[4] =
-          (client interface analysis_control_if (* unsafe)[4]) &b;
+        client interface analysis_control_if (* unsafe q)[NUM_ANALYSIS_INTERFACES] =
+          (client interface analysis_control_if (* unsafe)[NUM_ANALYSIS_INTERFACES]) &b;
         *((int * unsafe) (&(*q)[0])) = *((int * unsafe) &i_control_0);
         *((int * unsafe) (&(*q)[1])) = *((int * unsafe) &i_control_1);
 #if NUM_ANALYSIS_INTERFACES == 4
@@ -159,7 +159,7 @@ int main(){
         *((int * unsafe) (&(*q)[3])) = *((int * unsafe) &i_control_3);
 #endif
 
-        xscope_handler(c_host_data, i_chan_config, *q, *p, 4);
+        xscope_handler(c_host_data, i_chan_config, *q, *p, NUM_ANALYSIS_INTERFACES);
       }
 
     on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ,
