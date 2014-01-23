@@ -17,7 +17,13 @@ USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master module_
 # XCC_XC_FLAGS, XCC_C_FLAGS, XCC_ASM_FLAGS, XCC_CPP_FLAGS
 # If the variable XCC_MAP_FLAGS is set it overrides the flags passed to
 # xcc for the final link (mapping) stage.
-XCC_FLAGS = -O3 -g -report -save-temps
+BUILD_FLAGS = -O3 -g -report -save-temps
+
+XCC_FLAGS_stereo_board_tester = $(BUILD_FLAGS) -DSTEREO_BOARD_TESTER=1
+INCLUDE_ONLY_IN_stereo_board_tester =
+
+XCC_FLAGS_multi_chan_board_tester = $(BUILD_FLAGS)
+INCLUDE_ONLY_IN_multi_chan_board_tester = -DSPDIF_TESTER=1
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make system.
 VERBOSE = 0

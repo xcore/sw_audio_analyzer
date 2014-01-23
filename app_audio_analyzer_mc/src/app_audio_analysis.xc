@@ -16,14 +16,24 @@
 #define SIMULATOR_LOOPBACK 0
 #endif
 
+#ifndef SPDIF_TESTER
+#define SPDIF_TESTER 0
+#endif
+
+#ifndef STEREO_BOARD_TESTER
+#define STEREO_BOARD_TESTER 0
+#endif
+
 #define PORT_CLK_BIT            XS1_PORT_1I         /* Bit clock */
 #define PORT_CLK_LR             XS1_PORT_1E         /* LR clock */
 
 #define PORT_DAC_0              XS1_PORT_1M
 #define PORT_DAC_1              XS1_PORT_1F
+#define PORT_DAC_2              XS1_PORT_1H
 
 #define PORT_ADC_0              XS1_PORT_1G
 #define PORT_ADC_1              XS1_PORT_1A
+#define PORT_ADC_2              XS1_PORT_1B
 
 #define PORT_CLK_MAS            XS1_PORT_1L
 
@@ -35,12 +45,20 @@ on tile[1] : r_i2s i2s_resources =
   PORT_CLK_BIT,
   PORT_CLK_LR,
 #if I2S_MASTER_NUM_CHANS_ADC == 2
+#if !STEREO_BOARD_TESTER
   {PORT_ADC_0},
+#else
+  {PORT_ADC_2},
+#endif
 #else
   {PORT_ADC_0, PORT_ADC_1},
 #endif
 #if I2S_MASTER_NUM_CHANS_DAC == 2
+#if !STEREO_BOARD_TESTER
   {PORT_DAC_0},
+#else
+  {PORT_DAC_2},
+#endif
 #else
   {PORT_DAC_0, PORT_DAC_1},
 #endif
@@ -100,7 +118,9 @@ int main(){
   interface analysis_control_if i_control_0, i_control_1, i_control_2, i_control_3;
 
   streaming chan c_i2s_data, c_dac_samples;
+#if SPDIF_TESTER
   streaming chan c_dig_in;
+#endif
   chan c_host_data;
   par {
     on tile[1]:
@@ -131,7 +151,7 @@ int main(){
                                        1, i_error_reporting_1,
                                        i_control_1);
     on tile[0].core[0]: analysis_scheduler(i_sched0, 2);
-
+#if I2S_MASTER_NUM_CHANS_DAC == 4
     on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ,
                                        2, i_error_reporting_2,
                                        i_control_2);
@@ -139,14 +159,16 @@ int main(){
                                        3, i_error_reporting_3,
                                        i_control_3);
     on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
-
+#endif
     on tile[0]: {
       if (SIMULATOR_LOOPBACK)
         xscope_config_io(XSCOPE_IO_NONE);
       i2s_tap(c_i2s_data, c_dac_samples, i_analysis, I2S_MASTER_NUM_CHANS_DAC);
     }
 
+#if SPDIF_TESTER
     on tile[0]: SpdifReceive(p_spdif_in, c_dig_in, 4, clk_spdif);
+#endif
 
     on tile[1]: audio(c_i2s_data);
     on tile[1]: genclock();
@@ -156,7 +178,9 @@ int main(){
         xscope_config_io(XSCOPE_IO_NONE);
       signal_gen(c_dac_samples, SAMP_FREQ, chan_conf, i_chan_config);
     }
+#if SPDIF_TESTER
     on tile[1]: analyze_ramp(c_dig_in, BASE_DIG_CHAN_ID);
+#endif
   }
   return 0;
 }
