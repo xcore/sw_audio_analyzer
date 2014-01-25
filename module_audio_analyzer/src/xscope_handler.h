@@ -13,12 +13,13 @@
   #include "ethernet_tap.h"
 #endif
 
+[[combinable]]
 void xscope_handler(chanend c_host_data,
+    client interface error_flow_control_if i_flow_control,
     client interface channel_config_if i_chan_config,
-#if RELAY_CONTROL
-    client interface ethernet_tap_relay_control_if i_relay_control,
-#endif
-    client interface analysis_control_if i_control[n],
+    client interface analysis_control_if i_control[n], unsigned n);
+
+void error_reporter(server interface error_flow_control_if i_flow_control,
     server interface error_reporting_if i_error_reporting[n], unsigned n);
 
 #endif // __xscope_handler_h__

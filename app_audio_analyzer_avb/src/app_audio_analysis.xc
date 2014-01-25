@@ -73,48 +73,29 @@ int main(){
   interface audio_analysis_if i_analysis[4];
   interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
   interface channel_config_if i_chan_config;
-  interface ethernet_tap_relay_control_if i_relay_control;
-  /* Work-around for BUG 15107 - don't use array */
-  interface error_reporting_if i_error_reporting_0, i_error_reporting_1,
-                               i_error_reporting_2, i_error_reporting_3;
-  /* Work-around for BUG 15107 - don't use array */
-  interface analysis_control_if i_control_0, i_control_1, i_control_2, i_control_3;
+  interface analysis_control_if i_control[4];
+
+  interface error_flow_control_if i_flow_control;
+  interface error_reporting_if i_error_reporting[4];
   streaming chan c_i2s_data, c_dac_samples;
   chan c_host_data;
   par {
-    xscope_host_data(c_host_data);
+    // If the xscope handler is on tile[1] this needs to be commented (tools bug workaround)
+//    xscope_host_data(c_host_data);
 
-    on tile[0]:
-      unsafe {
-        int a[4];
-        server interface error_reporting_if (* unsafe p)[4] =
-          (server interface error_reporting_if (* unsafe)[4]) &a;
-        *((int * unsafe) (&(*p)[0])) = *((int * unsafe) &i_error_reporting_0);
-        *((int * unsafe) (&(*p)[1])) = *((int * unsafe) &i_error_reporting_1);
-        *((int * unsafe) (&(*p)[2])) = *((int * unsafe) &i_error_reporting_2);
-        *((int * unsafe) (&(*p)[3])) = *((int * unsafe) &i_error_reporting_3);
-
-        int b[4];
-        client interface analysis_control_if (* unsafe q)[4] =
-          (client interface analysis_control_if (* unsafe)[4]) &b;
-        *((int * unsafe) (&(*q)[0])) = *((int * unsafe) &i_control_0);
-        *((int * unsafe) (&(*q)[1])) = *((int * unsafe) &i_control_1);
-        *((int * unsafe) (&(*q)[2])) = *((int * unsafe) &i_control_2);
-        *((int * unsafe) (&(*q)[3])) = *((int * unsafe) &i_control_3);
-
-        xscope_handler(c_host_data, i_chan_config, i_relay_control, *q, *p, 4);
-      }
+    on tile[0]: error_reporter(i_flow_control, i_error_reporting, 4);
+    on tile[1]: xscope_handler(c_host_data, i_flow_control, i_chan_config, i_control, 4);
 
     on tile[1].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0,
-        i_error_reporting_0, i_control_0);
+        i_error_reporting[0], i_control[0]);
     on tile[1].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1,
-        i_error_reporting_1, i_control_1);
+        i_error_reporting[1], i_control[1]);
     on tile[1].core[0]: analysis_scheduler(i_sched0, 2);
 
     on tile[1].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2,
-        i_error_reporting_2, i_control_2);
+        i_error_reporting[2], i_control[2]);
     on tile[1].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3,
-        i_error_reporting_3, i_control_3);
+        i_error_reporting[3], i_control[3]);
     on tile[1].core[1]: analysis_scheduler(i_sched1, 2);
 
     on tile[1]: {
@@ -122,8 +103,6 @@ int main(){
         xscope_config_io(XSCOPE_IO_NONE);
       i2s_tap(c_i2s_data, c_dac_samples, i_analysis, I2S_MASTER_NUM_CHANS_DAC);
     }
-
-    on tile[1]: relay_control(i_relay_control);
 
     on tile[AUDIO_IO_TILE]: audio(c_i2s_data);
     on tile[AUDIO_IO_TILE]: genclock();
