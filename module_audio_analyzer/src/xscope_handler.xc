@@ -6,7 +6,7 @@
 #include "xscope_handler.h"
 #include "host_xscope.h"
 
-#ifdef RELAY_CONTROL
+#if RELAY_CONTROL
 #include "ethernet_tap.h"
 #endif
 
@@ -25,9 +25,11 @@ void xscope_handler(chanend c_host_data,
   xscope_connect_data_from_host(c_host_data);
 
   // BUG 15192 - have to manually combine the relay control
+  #if RELAY_CONTROL
   timer relay_tmr;
   int relay_time;
   int relay_active = 0;
+  #endif
 
   unsigned int buffer[256/4]; // The maximum read size is 256 bytes
   unsigned char *char_ptr = (unsigned char *)buffer;

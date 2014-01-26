@@ -22,8 +22,8 @@ BUILD_FLAGS = -O3 -g -report -save-temps
 XCC_FLAGS_stereo_board_tester = $(BUILD_FLAGS) -DSTEREO_BOARD_TESTER=1
 INCLUDE_ONLY_IN_stereo_board_tester =
 
-XCC_FLAGS_multi_chan_board_tester = $(BUILD_FLAGS)
-INCLUDE_ONLY_IN_multi_chan_board_tester = -DSPDIF_TESTER=1
+XCC_FLAGS_multi_chan_board_tester = $(BUILD_FLAGS) -DSPDIF_TESTER=1
+INCLUDE_ONLY_IN_multi_chan_board_tester =
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make system.
 VERBOSE = 0
