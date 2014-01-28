@@ -4,10 +4,17 @@
 #include "debug_print.h"
 #include "xassert.h"
 
+#ifdef __audio_analyzer_conf_h_exists__
+#include "audio_analyzer_conf.h"
+#endif
+
+
 #define MAX_SINE_PERIOD 500
 
 // The default volume of the signals generated (min 1..31 max)
+#ifndef DEFAULT_VOLUME
 #define DEFAULT_VOLUME 27
+#endif
 
 static unsigned gcd(unsigned u, unsigned v)
 {
