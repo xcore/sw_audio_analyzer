@@ -84,7 +84,11 @@ int main(){
 //    xscope_host_data(c_host_data);
 
     on tile[0]: error_reporter(i_flow_control, i_error_reporting, 4);
-    on tile[1]: xscope_handler(c_host_data, i_flow_control, i_chan_config, i_control, 4);
+    on tile[1]: {
+      // Ensure the relay starts closed
+      ethernet_tap_set_relay_close();
+      xscope_handler(c_host_data, i_flow_control, i_chan_config, i_control, 4);
+    }
 
     on tile[1].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0,
         i_error_reporting[0], i_control[0]);
