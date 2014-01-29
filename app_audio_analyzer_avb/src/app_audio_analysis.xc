@@ -1,6 +1,8 @@
 #include <platform.h>
 #include <xs1.h>
 #include <xscope.h>
+#include <timer.h>
+
 #include "i2s_master.h"
 #include "audio_analyzer.h"
 #include "app_global.h"
@@ -87,6 +89,8 @@ int main(){
     on tile[1]: {
       // Ensure the relay starts closed
       ethernet_tap_set_relay_close();
+      delay_milliseconds(10);
+      ethernet_tap_set_control_idle();
       xscope_handler(c_host_data, i_flow_control, i_chan_config, i_control, 4);
     }
 
