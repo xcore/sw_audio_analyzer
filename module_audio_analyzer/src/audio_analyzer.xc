@@ -239,6 +239,7 @@ void audio_analyzer(server interface audio_analysis_if i_client,
 
     case i_control.set_chan_id(unsigned id):
       chan_id = id;
+      i_error_reporting.set_chan_id(id);
       break;
 
     case i_control.set_mode(unsigned mode):
