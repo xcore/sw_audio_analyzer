@@ -78,23 +78,14 @@ int main(){
   interface analysis_control_if i_control[4];
 
   interface error_flow_control_if i_flow_control;
-  // Workaround for BUG 15097 - don't use an array of interfaces
-  interface error_reporting_if i_error_reporting_0, i_error_reporting_1, i_error_reporting_2, i_error_reporting_3;
+  interface error_reporting_if i_error_reporting[4];
   streaming chan c_i2s_data, c_dac_samples;
   chan c_host_data;
   par {
     // If the xscope handler is on tile[1] this needs to be commented (tools bug workaround)
 //    xscope_host_data(c_host_data);
-    on tile[0]: unsafe {
-        int a[4];
-        server interface error_reporting_if (* unsafe p)[4] =
-          (server interface error_reporting_if (* unsafe)[4]) &a;
-        *((int * unsafe) (&(*p)[0])) = *((int * unsafe) &i_error_reporting_0);
-        *((int * unsafe) (&(*p)[1])) = *((int * unsafe) &i_error_reporting_1);
-        *((int * unsafe) (&(*p)[2])) = *((int * unsafe) &i_error_reporting_2);
-        *((int * unsafe) (&(*p)[3])) = *((int * unsafe) &i_error_reporting_3);
-        error_reporter(i_flow_control, *p, 4);
-      }
+
+    on tile[0]: error_reporter(i_flow_control, i_error_reporting, 4);
     on tile[1]: {
       // Ensure the relay starts closed
       ethernet_tap_set_relay_close();
@@ -104,15 +95,15 @@ int main(){
     }
 
     on tile[1].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ, 0,
-        i_error_reporting_0, i_control[0]);
+        i_error_reporting[0], i_control[0]);
     on tile[1].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ, 1,
-        i_error_reporting_1, i_control[1]);
+        i_error_reporting[1], i_control[1]);
     on tile[1].core[0]: analysis_scheduler(i_sched0, 2);
 
     on tile[1].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ, 2,
-        i_error_reporting_2, i_control[2]);
+        i_error_reporting[2], i_control[2]);
     on tile[1].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ, 3,
-        i_error_reporting_3, i_control[3]);
+        i_error_reporting[3], i_control[3]);
     on tile[1].core[1]: analysis_scheduler(i_sched1, 2);
 
     on tile[1]: {
