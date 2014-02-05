@@ -102,13 +102,13 @@ void hook_data_received(int sockfd, int xscope_probe, void *data, int data_len)
 
   } else {
     int data_words = data_len/4;
-    g_expected_words -= data_words;
     if (g_expected_words < 0)
       print_and_exit("ERROR: expected words gone negative\n");
 
     for (i = 0; i < data_words; i++) {
+      g_expected_words -= 1;
       fprintf(g_file_handle, "%d, ", int_data[i]);
-      if (i && ((i % 8) == 0))
+      if ((g_expected_words % 8) == 0)
         fprintf(g_file_handle, "\n");
       fflush(g_file_handle);
     }
