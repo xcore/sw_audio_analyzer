@@ -10,20 +10,24 @@ TARGET = xr-usb-audio-2.0-mc
 APP_NAME = 
 
 # The USED_MODULES variable lists other module used by the application.
-USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master module_spdif_rx  module_logging module_xassert
+USED_MODULES = module_audio_analyzer module_i2c_simple module_i2s_master module_logging module_spdif_rx module_spdif_tx module_xassert
 
 # The flags passed to xcc when building the application
 # You can also set the following to override flags for a particular language:
 # XCC_XC_FLAGS, XCC_C_FLAGS, XCC_ASM_FLAGS, XCC_CPP_FLAGS
 # If the variable XCC_MAP_FLAGS is set it overrides the flags passed to
 # xcc for the final link (mapping) stage.
-BUILD_FLAGS = -O3 -g -report -save-temps
+
+BUILD_FLAGS = -report -O3 -g
 
 XCC_FLAGS_stereo_board_tester = $(BUILD_FLAGS) -DSTEREO_BOARD_TESTER=1
 INCLUDE_ONLY_IN_stereo_board_tester =
 
-XCC_FLAGS_multi_chan_board_tester = $(BUILD_FLAGS) -DSPDIF_TESTER=1
+XCC_FLAGS_multi_chan_board_tester = $(BUILD_FLAGS) -DSPDIF_OUT_TESTER=1 -DSPDIF_IN_TESTER=1
 INCLUDE_ONLY_IN_multi_chan_board_tester =
+
+XCC_FLAGS_SimulatorLoopback = $(BUILD_FLAGS) -DSIMULATOR_LOOPBACK=1
+INCLUDE_ONLY_IN_SimulatorLoopback =
 
 # The VERBOSE variable, if set to 1, enables verbose output from the make system.
 VERBOSE = 0
