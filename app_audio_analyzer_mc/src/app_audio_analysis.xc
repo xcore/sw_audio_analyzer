@@ -37,6 +37,11 @@
 
 #define PORT_CLK_MAS            XS1_PORT_1L
 
+#define PORT_SPDIF_IN           XS1_PORT_1K;    //coaxial (optical = 1J, coax = 1K)
+#ifndef PORT_SPDIF_OUT
+#define PORT_SPDIF_OUT          XS1_PORT_1K;    //coaxial (optical = 1J, coax = 1K)
+#endif
+
 on tile[1] : r_i2s i2s_resources =
 {
   XS1_CLKBLK_1,
@@ -64,13 +69,14 @@ on tile[1] : r_i2s i2s_resources =
 #endif
 };
 
-clock dummy_clk = on tile[1]: XS1_CLKBLK_3;
-out port p_dummy_clk = on tile[1]: XS1_PORT_1J;
+on tile[1]: clock dummy_clk = XS1_CLKBLK_3;
+on tile[1]: out port p_dummy_clk = XS1_PORT_1J;
 
-in buffered port:4 p_spdif_in = on tile[0]: XS1_PORT_1K;
-clock clk_spdif = on tile[0]: XS1_CLKBLK_1;
+on tile[0]: in buffered port:4 p_spdif_in = PORT_SPDIF_IN;
+on tile[0]: clock clk_spdif_in = XS1_CLKBLK_1;
 
-out port p_spdif_out = on tile[1] : XS1_PORT_1K;
+on tile[1]: out buffered port:32 p_spdif_out =  PORT_SPDIF_OUT;
+on tile[1]: clock clk_spdif_out = XS1_CLKBLK_5;
 
 static void audio(streaming chanend c_i2s_data) {
   // First make sure the i2s client is ready
