@@ -1,6 +1,7 @@
 #include "audio_analyzer.h"
 #include "debug_print.h"
 #include "SpdifReceive.h"
+#include "xscope.h"
 #include <xs1.h>
 
 interface analyze_ramp_if {
@@ -64,7 +65,7 @@ static void analyze_ramp_aux(server interface analyze_ramp_if i, unsigned chan_i
 	  else {
 	    detect_count++;
 	    if (detect_count > DETECT_COUNT_THRESHOLD) {
-	      debug_printf("Channel %u: step = %d\n", chan_id, step);
+	      debug_printf("Channel %u: Ramp step = %d\n", chan_id, step);
 	      state = CHECKING;
 	    }
 	  }
@@ -98,6 +99,7 @@ static void split_signal(streaming chanend c_dig_in,
     int lr = ((sample & 0xF) == FRAME_Y) ? 1 : 0;
     sample >>= 4;
     sample = sext(sample, 24);
+    xscope_int(AUDIO_ANALYZER_SPDIF_RX, sample);
     i[lr].analyze_sample(sample);
   }
 }

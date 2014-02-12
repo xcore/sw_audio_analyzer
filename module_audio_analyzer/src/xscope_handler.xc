@@ -20,6 +20,7 @@
 void xscope_handler(chanend c_host_data,
     client interface error_flow_control_if i_flow_control,
     client interface channel_config_if i_chan_config,
+    client interface spdif_config_if ?i_spdif_config,
     client interface analysis_control_if i_control[n], unsigned n)
 {
   xscope_connect_data_from_host(c_host_data);

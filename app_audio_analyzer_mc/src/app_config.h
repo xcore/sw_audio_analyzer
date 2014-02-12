@@ -26,5 +26,19 @@
  #error Unsupported I2S_MASTER_NUM_CHANS_DAC value
  #endif
 
+#if SPDIF_IN_TESTER == 1
+ #ifndef DIGITAL_MASTER_NUM_CHANS
+  #define DIGITAL_MASTER_NUM_CHANS 2
+ #endif
+ #define SPDIF_CONFIG \
+ {{ 1, RAMP, 5, 0, 0, 0 }, \
+  { 1, RAMP, -7, 0, 0, 0 } \
+ }
+#else
+ #define DIGITAL_MASTER_NUM_CHANS 0
+#endif
+
+
+
 #define BASE_CHAN_ID       0
 #define BASE_DIG_CHAN_ID   8
