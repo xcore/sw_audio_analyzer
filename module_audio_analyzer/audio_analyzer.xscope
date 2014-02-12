@@ -3,5 +3,7 @@
     <Probe name="Chan 0 ADC Data" type="CONTINUOUS" datatype="INT" units=""/>
     <Probe name="Glitch Data" type="CONTINUOUS" datatype="INT" units=""/>
     <Probe name="Mag Spec" type="DISCRETE" datatype="UINT" units=""/>
+    <Probe name="SPDIF Tx" type="CONTINUOUS" datatype="INT" units=""/>
+    <Probe name="SPDIF Rx" type="CONTINUOUS" datatype="INT" units=""/>
   </Module>
 </xSCOPEconfig>
