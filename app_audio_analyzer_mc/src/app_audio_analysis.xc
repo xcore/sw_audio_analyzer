@@ -9,15 +9,25 @@
 #include "debug_print.h"
 #include "xassert.h"
 #include "signal_gen.h"
+#if SPDIF_IN_TESTER == 1
+#include "ramp_gen.h"
+#endif
 #include "SpdifReceive.h"
+#include "SpdifTransmit.h"
 #include "xscope_handler.h"
 
 #ifndef SIMULATOR_LOOPBACK
 #define SIMULATOR_LOOPBACK 0
 #endif
 
-#ifndef SPDIF_TESTER
-#define SPDIF_TESTER 0
+//Controls ramp checking (from DUT SPDIF out)
+#ifndef SPDIF_OUT_TESTER
+#define SPDIF_OUT_TESTER 0
+#endif
+
+//Controls ramp generation (into DUT SPDIF in)
+#ifndef SPDIF_IN_TESTER
+#define SPDIF_IN_TESTER 0
 #endif
 
 #ifndef STEREO_BOARD_TESTER
@@ -78,7 +88,7 @@ on tile[0]: clock clk_spdif_in = XS1_CLKBLK_1;
 on tile[1]: out buffered port:32 p_spdif_out =  PORT_SPDIF_OUT;
 on tile[1]: clock clk_spdif_out = XS1_CLKBLK_5;
 
-static void audio(streaming chanend c_i2s_data) {
+static void audio(streaming chanend c_i2s_data, chanend ?c_spdif_tx) {
   // First make sure the i2s client is ready
   for (int i = 0; i < I2S_MASTER_NUM_CHANS_ADC; i++)
     c_i2s_data <: 0;
@@ -96,14 +106,28 @@ static void audio(streaming chanend c_i2s_data) {
   else {
     debug_printf("Initializing Hardware\n");
     AudioHwInit();
+#if SPDIF_IN_TESTER == 1
+    SpdifTransmitPortConfig(p_spdif_out, clk_spdif_out, i2s_resources.mck);
+#else
+    p_spdif_out <: 0; //Drive a zero to stop it flapping (causes noise on SPDIF input when looped back)
+#endif
   }
 
   // Go into the I2S loop
   debug_printf("Starting I2S\n");
+  par{
   i2s_master(i2s_resources, c_i2s_data, MCLK_FREQ / (SAMP_FREQ * 64));
+#if SPDIF_IN_TESTER == 1
+      debug_printf("Starting SPDIF tx\n");
+      SpdifTransmit(p_spdif_out, c_spdif_tx);
+#endif
+  }
 }
 
 chan_conf_t chan_conf[I2S_MASTER_NUM_CHANS_DAC] = CHAN_CONFIG;
+#if SPDIF_IN_TESTER == 1
+spdif_conf_t spdif_conf[DIGITAL_MASTER_NUM_CHANS] = SPDIF_CONFIG;
+#endif
 
 #ifndef BASE_CHAN_ID
 #define BASE_CHAN_ID 0
@@ -131,7 +155,11 @@ int main(){
   interface error_flow_control_if i_flow_control;
 
   streaming chan c_i2s_data, c_dac_samples;
-#if SPDIF_TESTER
+#if SPDIF_IN_TESTER == 1
+  chan c_spdif_tx;
+  interface spdif_config_if i_spdif_config;
+#endif
+#if SPDIF_OUT_TESTER == 1
   streaming chan c_dig_in;
 #endif
   chan c_host_data;
@@ -139,6 +167,12 @@ int main(){
     on tile[1]: error_reporter(i_flow_control, i_error_reporting,
                                NUM_ANALYSIS_INTERFACES);
     on tile[1]: xscope_handler(c_host_data, i_flow_control, i_chan_config,
+#if SPDIF_IN_TESTER == 1
+            i_spdif_config,
+#else
+            null,
+#endif
+
                                i_control, NUM_ANALYSIS_INTERFACES);
 
     on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ,
@@ -165,21 +199,25 @@ int main(){
       i2s_tap(c_i2s_data, c_dac_samples, i_analysis, I2S_MASTER_NUM_CHANS_DAC);
     }
 
-#if SPDIF_TESTER
-    on tile[0]: SpdifReceive(p_spdif_in, c_dig_in, 4, clk_spdif);
+#if SPDIF_IN_TESTER == 1
+    on tile[0]: ramp_gen(c_spdif_tx, SAMP_FREQ, spdif_conf, i_spdif_config);
 #endif
-
-    on tile[1]: audio(c_i2s_data);
+#if SPDIF_OUT_TESTER == 1
+    on tile[0]: analyze_ramp(c_dig_in, BASE_DIG_CHAN_ID);
+    on tile[0]: SpdifReceive(p_spdif_in, c_dig_in, 4, clk_spdif_in);
+#endif
+    on tile[1]: audio(c_i2s_data,
+#if SPDIF_IN_TESTER == 1
+            c_spdif_tx);
+#else
+            null);
+#endif
     on tile[1]: genclock();
     on tile[1]: {
-      p_spdif_out <: 0;
       if (SIMULATOR_LOOPBACK)
         xscope_config_io(XSCOPE_IO_NONE);
       signal_gen(c_dac_samples, SAMP_FREQ, chan_conf, i_chan_config);
     }
-#if SPDIF_TESTER
-    on tile[1]: analyze_ramp(c_dig_in, BASE_DIG_CHAN_ID);
-#endif
   }
   return 0;
 }
