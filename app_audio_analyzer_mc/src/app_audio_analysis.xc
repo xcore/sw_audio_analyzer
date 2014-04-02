@@ -115,21 +115,14 @@ chan_conf_t chan_conf[I2S_MASTER_NUM_CHANS_DAC] = CHAN_CONFIG;
 
 int main(){
   interface audio_analysis_if i_analysis[NUM_ANALYSIS_INTERFACES];
-#if NUM_ANALYSIS_INTERFACES == 2
-    interface audio_analysis_scheduler_if i_sched0[2];
-  /* Work-around for BUG 15107 - don't use array */
-  interface error_reporting_if i_error_reporting_0, i_error_reporting_1;
-  /* Work-around for BUG 15107 - don't use array */
-  interface analysis_control_if i_control_0, i_control_1;
-#elif NUM_ANALYSIS_INTERFACES == 4
-  interface audio_analysis_scheduler_if i_sched0[2], i_sched1[2];
-  /* Work-around for BUG 15107 - don't use array */
-  interface error_reporting_if i_error_reporting_0, i_error_reporting_1,
-                               i_error_reporting_2, i_error_reporting_3;
-  /* Work-around for BUG 15107 - don't use array */
-  interface analysis_control_if i_control_0, i_control_1, i_control_2, i_control_3;
+  interface audio_analysis_scheduler_if i_sched0[2];
+#if NUM_ANALYSIS_INTERFACES == 4
+  interface audio_analysis_scheduler_if i_sched1[2];
 #endif
+  interface error_reporting_if i_error_reporting[NUM_ANALYSIS_INTERFACES];
+  interface analysis_control_if i_control[NUM_ANALYSIS_INTERFACES];
   interface channel_config_if i_chan_config;
+  interface error_flow_control_if i_flow_control;
 
   streaming chan c_i2s_data, c_dac_samples;
 #if SPDIF_TESTER
@@ -137,47 +130,29 @@ int main(){
 #endif
   chan c_host_data;
   par {
-    on tile[1]:
-      unsafe {
-        int a[4];
-        server interface error_reporting_if (* unsafe p)[NUM_ANALYSIS_INTERFACES] =
-          (server interface error_reporting_if (* unsafe)[NUM_ANALYSIS_INTERFACES]) &a;
-        *((int * unsafe) (&(*p)[0])) = *((int * unsafe) &i_error_reporting_0);
-        *((int * unsafe) (&(*p)[1])) = *((int * unsafe) &i_error_reporting_1);
-#if NUM_ANALYSIS_INTERFACES == 4
-        *((int * unsafe) (&(*p)[2])) = *((int * unsafe) &i_error_reporting_2);
-        *((int * unsafe) (&(*p)[3])) = *((int * unsafe) &i_error_reporting_3);
-#endif
-
-        int b[4];
-        client interface analysis_control_if (* unsafe q)[NUM_ANALYSIS_INTERFACES] =
-          (client interface analysis_control_if (* unsafe)[NUM_ANALYSIS_INTERFACES]) &b;
-        *((int * unsafe) (&(*q)[0])) = *((int * unsafe) &i_control_0);
-        *((int * unsafe) (&(*q)[1])) = *((int * unsafe) &i_control_1);
-#if NUM_ANALYSIS_INTERFACES == 4
-        *((int * unsafe) (&(*q)[2])) = *((int * unsafe) &i_control_2);
-        *((int * unsafe) (&(*q)[3])) = *((int * unsafe) &i_control_3);
-#endif
-
-        xscope_handler(c_host_data, i_chan_config, *q, *p, NUM_ANALYSIS_INTERFACES);
-      }
+    on tile[1]: error_reporter(i_flow_control, i_error_reporting,
+                               NUM_ANALYSIS_INTERFACES);
+    on tile[1]: xscope_handler(c_host_data, i_flow_control, i_chan_config,
+                               i_control, NUM_ANALYSIS_INTERFACES);
 
     on tile[0].core[0]: audio_analyzer(i_analysis[0], i_sched0[0], SAMP_FREQ,
-                                       0, i_error_reporting_0,
-                                       i_control_0);
+                                       0, i_error_reporting[0],
+                                       i_control[0]);
     on tile[0].core[0]: audio_analyzer(i_analysis[1], i_sched0[1], SAMP_FREQ,
-                                       1, i_error_reporting_1,
-                                       i_control_1);
+                                       1, i_error_reporting[1],
+                                       i_control[1]);
     on tile[0].core[0]: analysis_scheduler(i_sched0, 2);
+
 #if NUM_ANALYSIS_INTERFACES == 4
     on tile[0].core[1]: audio_analyzer(i_analysis[2], i_sched1[0], SAMP_FREQ,
-                                       2, i_error_reporting_2,
-                                       i_control_2);
+                                       2, i_error_reporting[2],
+                                       i_control[2]);
     on tile[0].core[1]: audio_analyzer(i_analysis[3], i_sched1[1], SAMP_FREQ,
-                                       3, i_error_reporting_3,
-                                       i_control_3);
+                                       3, i_error_reporting[3],
+                                       i_control[3]);
     on tile[0].core[1]: analysis_scheduler(i_sched1, 2);
 #endif
+
     on tile[0]: {
       if (SIMULATOR_LOOPBACK)
         xscope_config_io(XSCOPE_IO_NONE);
