@@ -55,6 +55,8 @@ static void analyze_ramp_aux(server interface analyze_ramp_if i, unsigned chan_i
       case DETECTING:
         if (detect_count == 0) {
 	  step = ((sample << 8) - (prev << 8)) >> 8;
+          if (step == 0)
+            break;
 	  detect_count++;
 	} else {
 	  int diff = ((sample << 8) - (prev << 8)) >> 8;
